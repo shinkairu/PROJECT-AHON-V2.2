@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+from pathlib import Path
 import joblib
 import folium
 from streamlit_folium import st_folium
@@ -36,7 +37,8 @@ body {
 # --------------------------------------------------
 @st.cache_data
 def load_data():
-    return pd.read_csv("../data/Flood_Prediction_NCR_Philippines.csv")
+    data_path = Path(__file__).parent.parent / "data" / "Flood_Prediction_NCR_Philippines.csv"
+    return pd.read_csv(data_path)
 
 @st.cache_resource
 def load_model():
