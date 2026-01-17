@@ -1,184 +1,208 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import joblib
 import folium
 from streamlit_folium import st_folium
+from streamlit_lottie import st_lottie
+import json
+import matplotlib.pyplot as plt
+import seaborn as sns
 
-# --------------------------------------------------
+# ------------------------------------------------------
 # PAGE CONFIG
-# --------------------------------------------------
+# ------------------------------------------------------
 st.set_page_config(
-    page_title="PROJECT AHON",
+    page_title="PROJECT – AHON",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# --------------------------------------------------
-# GLOBAL THEME (BLUE–WHITE GRADIENT)
-# --------------------------------------------------
+# ------------------------------------------------------
+# GLOBAL CSS (MOTION + THEME)
+# ------------------------------------------------------
 st.markdown("""
 <style>
+
+@keyframes fadeIn {
+  from {opacity: 0; transform: translateY(15px);}
+  to {opacity: 1; transform: translateY(0);}
+}
+
+.fade-in {
+  animation: fadeIn 0.8s ease-in-out;
+}
+
+.motion-card {
+  background: white;
+  border-radius: 16px;
+  padding: 1.4rem;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+  transition: all 0.35s ease;
+}
+
+.motion-card:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 18px 50px rgba(0,0,0,0.18);
+}
+
 body {
-    background: linear-gradient(135deg, #e3f2fd 0%, #ffffff 60%);
+  background: linear-gradient(135deg, #e3f2fd, #ffffff);
 }
-h1, h2, h3 {
-    color: #0d47a1;
-}
-.block-container {
-    padding-top: 2rem;
-}
+
 </style>
 """, unsafe_allow_html=True)
 
-# --------------------------------------------------
-# LOAD MODEL & DATA
-# --------------------------------------------------
-@st.cache_resource
-def load_model():
-    return joblib.load("models/rf_flood_model.pkl")
-
+# ------------------------------------------------------
+# LOAD DATA & MODEL
+# ------------------------------------------------------
 @st.cache_data
 def load_data():
-    df = pd.read_csv("data/Flood_Prediction_NCR_Philippines.csv")
-    df["Date"] = pd.to_datetime(df["Date"])
-    return df
+    return pd.read_csv("data/Flood_Prediction_NCR_Philippines.csv")
 
-rf_model = load_model()
+@st.cache_resource
+def load_model():
+    model = joblib.load("models/rf_flood_model.pkl")
+    scaler = joblib.load("models/feature_scaler.pkl")
+    return model, scaler
+
 df = load_data()
+rf_model, scaler = load_model()
 
-# --------------------------------------------------
-# FEATURE ENGINEERING (SAME AS COLAB)
-# --------------------------------------------------
-def engineer_features(df):
-    df = df.sort_values(["Location", "Date"])
-    df["Rainfall_prev_day"] = df.groupby("Location")["Rainfall_mm"].shift(1)
-    df["Rainfall_3day_avg"] = df.groupby("Location")["Rainfall_mm"].rolling(3,1).mean().reset_index(level=0, drop=True)
-    df["Rainfall_7day_avg"] = df.groupby("Location")["Rainfall_mm"].rolling(7,1).mean().reset_index(level=0, drop=True)
-    df["WaterLevel_prev_day"] = df.groupby("Location")["WaterLevel_m"].shift(1)
-    df["WaterLevel_change"] = df["WaterLevel_m"] - df["WaterLevel_prev_day"]
-    df["WaterLevel_rising"] = (df["WaterLevel_change"] > 0).astype(int)
-    df["Month"] = df["Date"].dt.month
-    df["IsWetSeason"] = df["Month"].isin([6,7,8,9,10,11]).astype(int)
-    return df.fillna(0)
+# ------------------------------------------------------
+# FEATURE ENGINEERING (SAFE INLINE VERSION)
+# ------------------------------------------------------
+df['Date'] = pd.to_datetime(df['Date'])
+df = df.sort_values(['Location', 'Date'])
 
-df = engineer_features(df)
+df['Month'] = df['Date'].dt.month
+df['IsWetSeason'] = df['Month'].isin([6,7,8,9,10,11]).astype(int)
 
-FEATURES = [
-    'Rainfall_mm', 'WaterLevel_m', 'SoilMoisture_pct', 'Elevation_m',
-    'Rainfall_3day_avg', 'Rainfall_7day_avg', 'Rainfall_prev_day',
-    'WaterLevel_prev_day', 'WaterLevel_change', 'WaterLevel_rising',
-    'Month', 'IsWetSeason'
+df['Rainfall_3day_avg'] = df.groupby('Location')['Rainfall_mm'].rolling(3,1).mean().reset_index(0,drop=True)
+df['Rainfall_7day_avg'] = df.groupby('Location')['Rainfall_mm'].rolling(7,1).mean().reset_index(0,drop=True)
+
+df['Rainfall_prev_day'] = df.groupby('Location')['Rainfall_mm'].shift(1)
+df['WaterLevel_prev_day'] = df.groupby('Location')['WaterLevel_m'].shift(1)
+
+df['WaterLevel_change'] = df['WaterLevel_m'] - df['WaterLevel_prev_day']
+df['WaterLevel_rising'] = (df['WaterLevel_change'] > 0).astype(int)
+
+df = df.dropna()
+
+FEATURE_COLS = [
+    'Rainfall_mm','WaterLevel_m','SoilMoisture_pct','Elevation_m',
+    'Rainfall_3day_avg','Rainfall_7day_avg','Rainfall_prev_day',
+    'WaterLevel_prev_day','WaterLevel_change','WaterLevel_rising',
+    'Month','IsWetSeason'
 ]
 
-df["FloodRisk"] = rf_model.predict_proba(df[FEATURES])[:,1]
-
-# --------------------------------------------------
-# CAROUSEL-STYLE NAVIGATION
-# --------------------------------------------------
+# ------------------------------------------------------
+# NAVIGATION (CAROUSEL-LIKE FLOW)
+# ------------------------------------------------------
 panel = st.radio(
     "",
-    [
-        "PROJECT AHON",
-        "Dataset & Feature Engineering",
-        "Flood Risk Mapping",
-        "Insights & Aggregations"
-    ],
+    ["PROJECT AHON", "Dataset & EDA", "Insights & Mapping"],
     horizontal=True
 )
 
-# --------------------------------------------------
-# PANEL 1 — MAIN PANEL
-# --------------------------------------------------
+# ------------------------------------------------------
+# PANEL 1 — HERO
+# ------------------------------------------------------
 if panel == "PROJECT AHON":
-    st.title("PROJECT – AHON")
-    st.subheader("AI-Driven Flood Risk Prediction System")
+    col1, col2 = st.columns([1.3,1])
 
-    st.markdown("""
-    **PROJECT AHON** is an intelligent flood-risk assessment platform that integrates:
+    with col1:
+        st.markdown('<div class="fade-in">', unsafe_allow_html=True)
+        st.title("PROJECT – AHON")
+        st.subheader("AI-Powered Flood Risk Intelligence")
 
-    - Meteorological signals
-    - Hydrological indicators
-    - Temporal feature engineering
-    - Machine learning–based risk inference
-    - City-level geospatial visualization
+        st.markdown("""
+        PROJECT AHON transforms environmental signals into
+        **actionable flood risk intelligence** using:
 
-    The system is designed for **decision support**, **early warning**, and **urban risk monitoring**.
-    """)
+        • Feature engineering  
+        • Machine learning inference  
+        • Temporal analysis  
+        • Geospatial visualization  
 
-# --------------------------------------------------
-# PANEL 2 — DATASET + EDA + FEATURE ENGINEERING
-# --------------------------------------------------
-elif panel == "Dataset & Feature Engineering":
-    st.header("Dataset Overview")
-    st.dataframe(df.head())
+        Built for **early warning**, **urban resilience**, and **decision support**.
+        """)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    st.header("Feature Engineering Outputs")
-    st.markdown("""
-    Engineered features include:
-    - Rolling rainfall averages
-    - Lagged rainfall & water level
-    - Water level trend indicators
-    - Seasonal indicators
-    """)
+    with col2:
+        with open("assets/flood_animation.json") as f:
+            st_lottie(json.load(f), height=320, speed=1)
 
-    st.dataframe(df[FEATURES].describe())
+# ------------------------------------------------------
+# PANEL 2 — DATASET + EDA
+# ------------------------------------------------------
+elif panel == "Dataset & EDA":
+    st.header("Dataset Overview & Feature Engineering")
 
-# --------------------------------------------------
-# PANEL 3 — GEOSPATIAL FLOOD RISK MAPPING
-# --------------------------------------------------
-elif panel == "Flood Risk Mapping":
-    st.header("City-Level Flood Risk Visualization")
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.markdown('<div class="motion-card">', unsafe_allow_html=True)
+        st.metric("Total Records", len(df))
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with col2:
+        st.markdown('<div class="motion-card">', unsafe_allow_html=True)
+        st.metric("Cities Covered", df['Location'].nunique())
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with col3:
+        st.markdown('<div class="motion-card">', unsafe_allow_html=True)
+        st.metric("Flood Events", int(df['FloodOccurrence'].sum()))
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    st.subheader("Rainfall vs Flood Occurrence")
+    fig, ax = plt.subplots()
+    sns.boxplot(x='FloodOccurrence', y='Rainfall_mm', data=df, ax=ax)
+    st.pyplot(fig)
+
+# ------------------------------------------------------
+# PANEL 3 — INSIGHTS + MAP
+# ------------------------------------------------------
+else:
+    st.header("Flood Risk Insights & Mapping")
+
+    X = df[FEATURE_COLS]
+    df['FloodRisk'] = rf_model.predict_proba(X)[:,1]
+
+    city_latest = df.sort_values('Date').groupby('Location').tail(1)
 
     city_coords = {
-        "Quezon City": (14.6760, 121.0437),
-        "Manila": (14.5995, 120.9842),
-        "Pasig": (14.5764, 121.0851),
-        "Marikina": (14.6507, 121.1029)
+        'Quezon City': (14.6760,121.0437),
+        'Marikina': (14.6507,121.1029),
+        'Pasig': (14.5764,121.0851),
+        'Manila': (14.5995,120.9842)
     }
-
-    latest = df.sort_values("Date").groupby("Location").tail(1)
-
-    def risk_color(p):
-        if p >= 0.7: return "red"
-        elif p >= 0.4: return "orange"
-        return "green"
 
     m = folium.Map(location=[14.6,121.0], zoom_start=11)
 
-    for _, r in latest.iterrows():
+    def risk_color(p):
+        return 'red' if p>=0.7 else 'orange' if p>=0.4 else 'green'
+
+    for _, row in city_latest.iterrows():
         folium.CircleMarker(
-            location=city_coords[r["Location"]],
-            radius=16,
-            color=risk_color(r["FloodRisk"]),
+            location=city_coords[row['Location']],
+            radius=18,
+            color=risk_color(row['FloodRisk']),
             fill=True,
-            fill_opacity=0.75,
-            popup=f"""
-            <b>{r['Location']}</b><br>
-            Flood Risk Score: {r['FloodRisk']:.2f}
-            """
+            fill_opacity=0.7,
+            popup=f"{row['Location']}<br>Risk: {row['FloodRisk']:.2f}"
         ).add_to(m)
 
-    st_folium(m, height=550, width=1000)
+    st_folium(m, width=900, height=520)
 
-# --------------------------------------------------
-# PANEL 4 — INSIGHTS & AGGREGATIONS
-# --------------------------------------------------
-elif panel == "Insights & Aggregations":
-    st.header("City-Level Risk Insights")
-
-    insights = df.groupby("Location").agg(
-        Avg_Rainfall=("Rainfall_mm","mean"),
-        Flood_Days=("FloodOccurrence","sum"),
-        Avg_Predicted_Risk=("FloodRisk","mean")
-    )
-
-    st.dataframe(insights)
-
-# --------------------------------------------------
-# FOOTER (PERSISTENT)
-# --------------------------------------------------
-st.markdown("---")
-st.markdown(
-    "**PROJECT AHON** | Developed for AI-Driven Flood Risk Assessment | © 2026",
-    unsafe_allow_html=True
-)
+# ------------------------------------------------------
+# FOOTER
+# ------------------------------------------------------
+st.markdown("""
+<hr>
+<p style='text-align:center;'>
+PROJECT – AHON | Developed for Data Science & AI Applications<br>
+© 2026
+</p>
+""", unsafe_allow_html=True)
