@@ -42,7 +42,7 @@ def load_data():
 
 @st.cache_resource
 def load_model():
-    return joblib.load("PROJECT-AHON-V2.2/models/rf_flood_model.pkl")
+    return joblib.load("models/rf_flood_model.pkl")
 
 df = load_data()
 rf_model = load_model()
