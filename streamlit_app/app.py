@@ -4,205 +4,239 @@ import numpy as np
 import joblib
 import folium
 from streamlit_folium import st_folium
-from streamlit_lottie import st_lottie
-import json
-import matplotlib.pyplot as plt
-import seaborn as sns
+from sklearn.ensemble import IsolationForest
 
-# ------------------------------------------------------
+# ==============================
 # PAGE CONFIG
-# ------------------------------------------------------
+# ==============================
 st.set_page_config(
     page_title="PROJECT – AHON",
-    layout="wide",
-    initial_sidebar_state="collapsed"
+    page_icon="🌊",
+    layout="wide"
 )
 
-# ------------------------------------------------------
+# ==============================
 # GLOBAL CSS (MOTION + THEME)
-# ------------------------------------------------------
+# ==============================
 st.markdown("""
 <style>
-
-@keyframes fadeIn {
-  from {opacity: 0; transform: translateY(15px);}
-  to {opacity: 1; transform: translateY(0);}
-}
-
-.fade-in {
-  animation: fadeIn 0.8s ease-in-out;
-}
-
-.motion-card {
-  background: white;
-  border-radius: 16px;
-  padding: 1.4rem;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-  transition: all 0.35s ease;
-}
-
-.motion-card:hover {
-  transform: translateY(-8px) scale(1.02);
-  box-shadow: 0 18px 50px rgba(0,0,0,0.18);
-}
-
 body {
-  background: linear-gradient(135deg, #e3f2fd, #ffffff);
+    background: linear-gradient(135deg, #e3f2fd, #ffffff);
 }
-
+.fade-in {
+    animation: fadeIn 1.2s ease-in;
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.card {
+    background: white;
+    border-radius: 20px;
+    padding: 1.5rem;
+    box-shadow: 0px 8px 25px rgba(30,136,229,0.15);
+    transition: transform 0.3s ease;
+}
+.card:hover {
+    transform: translateY(-6px);
+}
+.hero {
+    background: linear-gradient(135deg, #1e88e5, #90caf9);
+    padding: 3rem;
+    border-radius: 30px;
+    color: white;
+    animation: pulse 3s infinite;
+}
+@keyframes pulse {
+    0% { transform: scale(1); opacity: 0.95; }
+    50% { transform: scale(1.02); opacity: 1; }
+    100% { transform: scale(1); opacity: 0.95; }
+}
+footer {
+    text-align: center;
+    opacity: 0.7;
+}
 </style>
 """, unsafe_allow_html=True)
 
-# ------------------------------------------------------
-# LOAD DATA & MODEL
-# ------------------------------------------------------
-@st.cache_data
-def load_data():
-    return pd.read_csv("data/Flood_Prediction_NCR_Philippines.csv")
-
-@st.cache_resource
-def load_model():
-    model = joblib.load("models/rf_flood_model.pkl")
-    scaler = joblib.load("models/feature_scaler.pkl")
-    return model, scaler
-
-df = load_data()
-rf_model, scaler = load_model()
-
-# ------------------------------------------------------
-# FEATURE ENGINEERING (SAFE INLINE VERSION)
-# ------------------------------------------------------
-df['Date'] = pd.to_datetime(df['Date'])
-df = df.sort_values(['Location', 'Date'])
-
-df['Month'] = df['Date'].dt.month
-df['IsWetSeason'] = df['Month'].isin([6,7,8,9,10,11]).astype(int)
-
-df['Rainfall_3day_avg'] = df.groupby('Location')['Rainfall_mm'].rolling(3,1).mean().reset_index(0,drop=True)
-df['Rainfall_7day_avg'] = df.groupby('Location')['Rainfall_mm'].rolling(7,1).mean().reset_index(0,drop=True)
-
-df['Rainfall_prev_day'] = df.groupby('Location')['Rainfall_mm'].shift(1)
-df['WaterLevel_prev_day'] = df.groupby('Location')['WaterLevel_m'].shift(1)
-
-df['WaterLevel_change'] = df['WaterLevel_m'] - df['WaterLevel_prev_day']
-df['WaterLevel_rising'] = (df['WaterLevel_change'] > 0).astype(int)
-
-df = df.dropna()
-
-FEATURE_COLS = [
-    'Rainfall_mm','WaterLevel_m','SoilMoisture_pct','Elevation_m',
-    'Rainfall_3day_avg','Rainfall_7day_avg','Rainfall_prev_day',
-    'WaterLevel_prev_day','WaterLevel_change','WaterLevel_rising',
-    'Month','IsWetSeason'
-]
-
-# ------------------------------------------------------
-# NAVIGATION (CAROUSEL-LIKE FLOW)
-# ------------------------------------------------------
-panel = st.radio(
-    "",
-    ["PROJECT AHON", "Dataset & EDA", "Insights & Mapping"],
-    horizontal=True
+# ==============================
+# SIDEBAR – CAROUSEL NAVIGATION
+# ==============================
+st.sidebar.title("🌊 PROJECT – AHON")
+panel = st.sidebar.radio(
+    "Navigate",
+    [
+        "🏠 Main Panel",
+        "📊 Dataset & EDA",
+        "🧠 Feature Engineering",
+        "🌧️ Anomaly Detection",
+        "🗺️ Geospatial Mapping",
+        "📈 Insights & Aggregations"
+    ]
 )
 
-# ------------------------------------------------------
-# PANEL 1 — HERO
-# ------------------------------------------------------
-if panel == "PROJECT AHON":
-    col1, col2 = st.columns([1.3,1])
+# ==============================
+# DATA LOADING (UPLOAD SAFE)
+# ==============================
+@st.cache_data
+def load_data(uploaded_file):
+    return pd.read_csv(uploaded_file)
 
-    with col1:
-        st.markdown('<div class="fade-in">', unsafe_allow_html=True)
-        st.title("PROJECT – AHON")
-        st.subheader("AI-Powered Flood Risk Intelligence")
+uploaded_file = st.sidebar.file_uploader(
+    "Upload Flood Dataset (CSV)",
+    type=["csv"]
+)
 
-        st.markdown("""
-        PROJECT AHON transforms environmental signals into
-        **actionable flood risk intelligence** using:
+df = None
+if uploaded_file:
+    df = load_data(uploaded_file)
 
-        • Feature engineering  
-        • Machine learning inference  
-        • Temporal analysis  
-        • Geospatial visualization  
+# ==============================
+# MAIN PANEL
+# ==============================
+if panel == "🏠 Main Panel":
+    st.markdown("<div class='hero fade-in'>", unsafe_allow_html=True)
+    st.title("PROJECT – AHON")
+    st.subheader("AI-Powered Flood Risk Intelligence System")
+    st.write("""
+    **PROJECT – AHON** leverages meteorological signals, temporal patterns,
+    anomaly detection, and geospatial visualization to provide **early flood
+    risk insights** for decision makers.
 
-        Built for **early warning**, **urban resilience**, and **decision support**.
-        """)
-        st.markdown('</div>', unsafe_allow_html=True)
+    ### How it Works
+    - Time-aware feature engineering
+    - Machine learning flood prediction
+    - Rainfall anomaly detection
+    - Interactive geospatial flood mapping
+    """)
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    with col2:
-        with open("assets/flood_animation.json") as f:
-            st_lottie(json.load(f), height=320, speed=1)
+# ==============================
+# DATASET & EDA
+# ==============================
+elif panel == "📊 Dataset & EDA":
+    if df is None:
+        st.warning("Please upload a dataset to continue.")
+    else:
+        st.markdown("<div class='card fade-in'>", unsafe_allow_html=True)
+        st.subheader("Dataset Overview")
+        st.write(df.head())
+        st.write("Shape:", df.shape)
+        st.markdown("</div>", unsafe_allow_html=True)
 
-# ------------------------------------------------------
-# PANEL 2 — DATASET + EDA
-# ------------------------------------------------------
-elif panel == "Dataset & EDA":
-    st.header("Dataset Overview & Feature Engineering")
+        st.markdown("<div class='card fade-in'>", unsafe_allow_html=True)
+        st.subheader("Summary Statistics")
+        st.write(df.describe())
+        st.markdown("</div>", unsafe_allow_html=True)
 
-    col1, col2, col3 = st.columns(3)
+# ==============================
+# FEATURE ENGINEERING
+# ==============================
+elif panel == "🧠 Feature Engineering":
+    if df is None:
+        st.warning("Upload dataset first.")
+    else:
+        df = df.copy()
+        df["Rainfall_3day_avg"] = df["Rainfall_mm"].rolling(3).mean()
+        df["Rainfall_7day_avg"] = df["Rainfall_mm"].rolling(7).mean()
+        df["WaterLevel_change"] = df["WaterLevel_m"].diff()
+        df["WaterLevel_rising"] = (df["WaterLevel_change"] > 0).astype(int)
 
-    with col1:
-        st.markdown('<div class="motion-card">', unsafe_allow_html=True)
-        st.metric("Total Records", len(df))
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown("<div class='card fade-in'>", unsafe_allow_html=True)
+        st.subheader("Engineered Features")
+        st.write(df[
+            [
+                "Rainfall_3day_avg",
+                "Rainfall_7day_avg",
+                "WaterLevel_change",
+                "WaterLevel_rising"
+            ]
+        ].head())
+        st.markdown("</div>", unsafe_allow_html=True)
 
-    with col2:
-        st.markdown('<div class="motion-card">', unsafe_allow_html=True)
-        st.metric("Cities Covered", df['Location'].nunique())
-        st.markdown('</div>', unsafe_allow_html=True)
+# ==============================
+# ANOMALY DETECTION
+# ==============================
+elif panel == "🌧️ Anomaly Detection":
+    if df is None:
+        st.warning("Upload dataset first.")
+    else:
+        iso = IsolationForest(
+            contamination=0.05,
+            random_state=42
+        )
+        df["Rainfall_Anomaly"] = iso.fit_predict(
+            df[["Rainfall_mm"]].fillna(0)
+        )
 
-    with col3:
-        st.markdown('<div class="motion-card">', unsafe_allow_html=True)
-        st.metric("Flood Events", int(df['FloodOccurrence'].sum()))
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown("<div class='card fade-in'>", unsafe_allow_html=True)
+        st.subheader("Rainfall Anomaly Detection")
+        st.write(
+            df[df["Rainfall_Anomaly"] == -1][
+                ["Rainfall_mm"]
+            ].head()
+        )
+        st.info("Detected extreme rainfall deviations using Isolation Forest.")
+        st.markdown("</div>", unsafe_allow_html=True)
 
-    st.subheader("Rainfall vs Flood Occurrence")
-    fig, ax = plt.subplots()
-    sns.boxplot(x='FloodOccurrence', y='Rainfall_mm', data=df, ax=ax)
-    st.pyplot(fig)
+# ==============================
+# GEOSPATIAL MAPPING
+# ==============================
+elif panel == "🗺️ Geospatial Mapping":
+    if df is None:
+        st.warning("Upload dataset first.")
+    else:
+        st.markdown("<div class='card fade-in'>", unsafe_allow_html=True)
+        st.subheader("Flood Risk Map")
 
-# ------------------------------------------------------
-# PANEL 3 — INSIGHTS + MAP
-# ------------------------------------------------------
-else:
-    st.header("Flood Risk Insights & Mapping")
+        m = folium.Map(
+            location=[14.6, 121.0],
+            zoom_start=10
+        )
 
-    X = df[FEATURE_COLS]
-    df['FloodRisk'] = rf_model.predict_proba(X)[:,1]
+        for _, row in df.head(100).iterrows():
+            color = "red" if row.get("FloodOccurrence", 0) == 1 else "blue"
+            folium.CircleMarker(
+                location=[
+                    row.get("Latitude", 14.6),
+                    row.get("Longitude", 121.0)
+                ],
+                radius=4,
+                color=color,
+                fill=True
+            ).add_to(m)
 
-    city_latest = df.sort_values('Date').groupby('Location').tail(1)
+        st_folium(m, width=900, height=500)
+        st.markdown("</div>", unsafe_allow_html=True)
 
-    city_coords = {
-        'Quezon City': (14.6760,121.0437),
-        'Marikina': (14.6507,121.1029),
-        'Pasig': (14.5764,121.0851),
-        'Manila': (14.5995,120.9842)
-    }
+# ==============================
+# INSIGHTS & AGGREGATIONS
+# ==============================
+elif panel == "📈 Insights & Aggregations":
+    if df is None:
+        st.warning("Upload dataset first.")
+    else:
+        st.markdown("<div class='card fade-in'>", unsafe_allow_html=True)
+        st.subheader("Key Insights")
 
-    m = folium.Map(location=[14.6,121.0], zoom_start=11)
+        st.metric(
+            "Average Rainfall (mm)",
+            round(df["Rainfall_mm"].mean(), 2)
+        )
+        st.metric(
+            "Flood Occurrence Rate",
+            f"{df['FloodOccurrence'].mean() * 100:.2f}%"
+        )
 
-    def risk_color(p):
-        return 'red' if p>=0.7 else 'orange' if p>=0.4 else 'green'
+        st.markdown("</div>", unsafe_allow_html=True)
 
-    for _, row in city_latest.iterrows():
-        folium.CircleMarker(
-            location=city_coords[row['Location']],
-            radius=18,
-            color=risk_color(row['FloodRisk']),
-            fill=True,
-            fill_opacity=0.7,
-            popup=f"{row['Location']}<br>Risk: {row['FloodRisk']:.2f}"
-        ).add_to(m)
-
-    st_folium(m, width=900, height=520)
-
-# ------------------------------------------------------
+# ==============================
 # FOOTER
-# ------------------------------------------------------
+# ==============================
 st.markdown("""
 <hr>
-<p style='text-align:center;'>
-PROJECT – AHON | Developed for Data Science & AI Applications<br>
-© 2026
-</p>
+<footer>
+Developed by PROJECT – AHON Team<br>
+AI • Flood Risk • Geospatial Intelligence
+</footer>
 """, unsafe_allow_html=True)
