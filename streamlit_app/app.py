@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import joblib
 import folium
 from streamlit_folium import st_folium
 from sklearn.ensemble import IsolationForest
@@ -16,7 +17,7 @@ st.set_page_config(
 )
 
 # ==============================
-# GLOBAL CSS
+# GLOBAL CSS – MODERN MATERIAL DESIGN
 # ==============================
 st.markdown("""
 <style>
@@ -79,6 +80,15 @@ body, .stApp {
     box-shadow: 0px 8px 20px rgba(30,136,229,0.15);
     margin-bottom: 1rem;
 }
+
+/* SIDEBAR */
+.stSidebar {
+    background: linear-gradient(180deg, #1e88e5, #90caf9);
+    color: white;
+    border-radius: 15px;
+    padding: 1rem;
+}
+.stSidebar .css-1d391kg { color: white; }
 
 /* TABLE HIGHLIGHT ON HOVER */
 .stDataFrame tbody tr:hover {
@@ -181,43 +191,33 @@ elif panel == "🌧️ Anomaly Detection":
         df["Rainfall_Anomaly"] = iso.fit_predict(df[["Rainfall_mm"]].fillna(0))
         df["Anomaly_Flag"] = df["Rainfall_Anomaly"].apply(lambda x: "Anomaly" if x == -1 else "Normal")
 
-        anomalies = df[df["Rainfall_Anomaly"] == -1].copy()
-
         st.markdown("<div class='card'>", unsafe_allow_html=True)
         st.subheader("Rainfall Anomaly Detection")
+
+        anomalies = df[df["Rainfall_Anomaly"] == -1].copy()
 
         if anomalies.empty:
             st.info("No anomalies detected in the uploaded dataset.")
         else:
-            # ===== Scatter plot in styled box =====
+            # ===== Scatter plot: Date vs Rainfall =====
             if 'Date' in df.columns:
-                df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
-                df = df.dropna(subset=['Date'])
-
-                scatter = alt.Chart(df).mark_circle(size=20).encode(
-                    x=alt.X('Date:T', axis=alt.Axis(title='Date', format='%b %d, %Y')),
-                    y=alt.Y('Rainfall_mm:Q', title='Rainfall (mm)'),
-                    color=alt.Color('Anomaly_Flag:N',
-                                    scale=alt.Scale(domain=['Normal','Anomaly'], 
-                                                    range=['#1e88e5','#e53935'])),
+                df['Date'] = pd.to_datetime(df['Date'])
+                scatter = alt.Chart(df).mark_circle(size=20).encode(  # small circle size
+                    x='Date:T',
+                    y='Rainfall_mm:Q',
+                    color=alt.Color('Anomaly_Flag:N', scale=alt.Scale(domain=['Normal','Anomaly'], range=['#1e88e5','#e53935'])),
                     tooltip=['Date', 'Rainfall_mm', 'Anomaly_Flag']
                 ).properties(
                     width=800,
-                    height=300,
-                    title="Rainfall Over Time with Anomalies"
+                    height=300
                 )
-                
-                st.markdown("<div style='padding:1rem; border-radius:15px; box-shadow:0px 10px 25px rgba(0,0,0,0.1); background-color:white;'>", unsafe_allow_html=True)
                 st.altair_chart(scatter, use_container_width=True)
-                st.markdown("</div>", unsafe_allow_html=True)
             else:
                 st.warning("No 'Date' column found – scatter plot not available.")
 
-            # ===== Table in styled box =====
+            # ===== Table of anomalies (no red background) =====
             anomalies = anomalies.sort_values(by="Rainfall_mm", ascending=False)
-            st.markdown("<div style='padding:1rem; border-radius:15px; box-shadow:0px 10px 25px rgba(0,0,0,0.1); background-color:white;'>", unsafe_allow_html=True)
             st.dataframe(anomalies)
-            st.markdown("</div>", unsafe_allow_html=True)
 
             st.info("Red dots in the plot = detected extreme rainfall deviations.")
 
@@ -235,7 +235,7 @@ elif panel == "🗺️ Geospatial Mapping":
 
         m = folium.Map(location=[14.6, 121.0], zoom_start=10)
         for _, row in df.head(100).iterrows():
-            color = "red" if row.get("FloodOccurrence",0)==1 else "blue"
+            color = "red" if row.get("FloodOccurrence", 0)==1 else "blue"
             folium.CircleMarker(
                 location=[row.get("Latitude",14.6), row.get("Longitude",121.0)],
                 radius=5, color=color, fill=True
@@ -254,8 +254,8 @@ elif panel == "📈 Insights & Aggregations":
         st.markdown("<div class='card'>", unsafe_allow_html=True)
         st.subheader("Key Insights")
 
-        avg_rainfall = round(df["Rainfall_mm"].mean(),2)
-        flood_rate = round(df["FloodOccurrence"].mean()*100,2)
+        avg_rainfall = round(df["Rainfall_mm"].mean(), 2)
+        flood_rate = round(df["FloodOccurrence"].mean() * 100, 2)
 
         cols = st.columns(2)
         with cols[0]:
@@ -266,15 +266,18 @@ elif panel == "📈 Insights & Aggregations":
         data = pd.DataFrame({
             'Metric': ['Average Rainfall (mm)', 'Flood Occurrence Rate (%)'],
             'Value': [avg_rainfall, flood_rate],
-            'Color': ['#1e88e5','#e53935']
+            'Color': ['#1e88e5', '#e53935']
         })
 
         chart = alt.Chart(data).mark_bar(size=40).encode(
             y=alt.Y('Metric', sort=None, title=''),
             x=alt.X('Value', title='Value / Percent (%)'),
             color=alt.Color('Color:N', scale=None, legend=None),
-            tooltip=['Metric','Value']
-        ).properties(width=600, height=200)
+            tooltip=['Metric', 'Value']
+        ).properties(
+            width=600,
+            height=200
+        )
 
         st.altair_chart(chart, use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
