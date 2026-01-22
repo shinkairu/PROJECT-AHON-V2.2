@@ -161,73 +161,24 @@ elif panel == "📊 Dataset & EDA":
         st.markdown("</div>", unsafe_allow_html=True)
 
 # ==============================
-# FEATURE ENGINEERING – ENHANCED TABLE UI
+# FEATURE ENGINEERING
 # ==============================
 elif panel == "🧠 Feature Engineering":
     if df is None:
         st.warning("Upload dataset first.")
     else:
         df = df.copy()
-
-        # Create engineered features
         df["Rainfall_3day_avg"] = df["Rainfall_mm"].rolling(3).mean()
         df["Rainfall_7day_avg"] = df["Rainfall_mm"].rolling(7).mean()
         df["WaterLevel_change"] = df["WaterLevel_m"].diff()
         df["WaterLevel_rising"] = (df["WaterLevel_change"] > 0).astype(int)
 
-        # Select sample to display
-        display_df = df[[
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
+        st.subheader("Engineered Features (Sample)")
+        st.dataframe(df[[
             "Rainfall_3day_avg","Rainfall_7day_avg","WaterLevel_change","WaterLevel_rising"
-        ]].head()
-
-        # Replace NaN with "N/A"
-        display_df = display_df.fillna("N/A")
-
-        # Build modern table
-        table_html = """
-        <div style="
-            background: linear-gradient(145deg, #ffffff, #f0f4f8);
-            border-radius: 20px;
-            padding: 1.5rem;
-            box-shadow: 0px 12px 28px rgba(30,136,229,0.2);
-            overflow-x: auto;
-        ">
-            <h3 style='margin-bottom:1rem;'>Engineered Features (Sample)</h3>
-            <table style="
-                width: 100%;
-                border-collapse: collapse;
-                font-family: 'Roboto', sans-serif;
-            ">
-                <thead>
-                    <tr style='background-color:#e3f2fd;'>
-                        <th style='padding:12px; text-align:right; border-bottom:2px solid #90caf9;'>Rainfall 3-day Avg</th>
-                        <th style='padding:12px; text-align:right; border-bottom:2px solid #90caf9;'>Rainfall 7-day Avg</th>
-                        <th style='padding:12px; text-align:right; border-bottom:2px solid #90caf9;'>Water Level Change</th>
-                        <th style='padding:12px; text-align:center; border-bottom:2px solid #90caf9;'>Water Level Rising</th>
-                    </tr>
-                </thead>
-                <tbody>
-        """
-
-        # Add table rows with zebra striping
-        for i, row in display_df.iterrows():
-            bg_color = "#ffffff" if i % 2 == 0 else "#f7f9fc"
-            table_html += f"""
-                <tr style='background-color:{bg_color};'>
-                    <td style='padding:10px; text-align:right;'>{row['Rainfall_3day_avg']}</td>
-                    <td style='padding:10px; text-align:right;'>{row['Rainfall_7day_avg']}</td>
-                    <td style='padding:10px; text-align:right;'>{row['WaterLevel_change']}</td>
-                    <td style='padding:10px; text-align:center;'>{row['WaterLevel_rising']}</td>
-                </tr>
-            """
-
-        table_html += """
-                </tbody>
-            </table>
-        </div>
-        """
-
-        st.markdown(table_html, unsafe_allow_html=True)
+        ]].head())
+        st.markdown("</div>", unsafe_allow_html=True)
 
 # ==============================
 # ANOMALY DETECTION
@@ -249,6 +200,7 @@ elif panel == "🌧️ Anomaly Detection":
         if anomalies.empty:
             st.info("No anomalies detected in the uploaded dataset.")
         else:
+            # ===== Scatter plot: Date vs Rainfall =====
             if 'Date' in df.columns:
                 df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
                 df_plot = df.dropna(subset=['Date', 'Rainfall_mm'])
@@ -266,8 +218,10 @@ elif panel == "🌧️ Anomaly Detection":
             else:
                 st.warning("No 'Date' column found – scatter plot not available.")
 
+            # ===== Table of anomalies =====
             anomalies = anomalies.sort_values(by="Rainfall_mm", ascending=False)
             st.dataframe(anomalies)
+
             st.info("Red dots in the plot = detected extreme rainfall deviations.")
 
         st.markdown("</div>", unsafe_allow_html=True)
@@ -341,3 +295,4 @@ Developed by PROJECT – AHON Team<br>
 AI • Flood Risk • Geospatial Intelligence
 </footer>
 """, unsafe_allow_html=True)
+
