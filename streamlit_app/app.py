@@ -102,10 +102,9 @@ footer { text-align: center; opacity: 0.7; margin-top: 3rem; }
 """, unsafe_allow_html=True)
 
 # ==============================
-# SIDEBAR – NAVIGATION & FILE UPLOAD
+# SIDEBAR – NAVIGATION
 # ==============================
 st.sidebar.title("🌊 PROJECT – AHON")
-
 panel = st.sidebar.radio(
     "Navigate",
     [
@@ -121,15 +120,16 @@ panel = st.sidebar.radio(
 # ==============================
 # DATA UPLOAD
 # ==============================
-st.markdown("""
-<style>
-/* Make file uploader text visible in sidebar */
-div[data-testid="stFileUploader"] label, 
-div[data-testid="stFileUploader"] span {
-    color: black !important;
-}
-</style>
-""", unsafe_allow_html=True)
+@st.cache_data
+def load_data(uploaded_file):
+    return pd.read_csv(uploaded_file)
+
+uploaded_file = st.sidebar.file_uploader(
+    "Upload Flood Dataset (CSV)",
+    type=["csv"]
+)
+df = load_data(uploaded_file) if uploaded_file else None
+
 # ==============================
 # MAIN PANEL
 # ==============================
@@ -200,6 +200,7 @@ elif panel == "🌧️ Anomaly Detection":
         if anomalies.empty:
             st.info("No anomalies detected in the uploaded dataset.")
         else:
+            # ===== Scatter plot: Date vs Rainfall =====
             if 'Date' in df.columns:
                 df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
                 df_plot = df.dropna(subset=['Date', 'Rainfall_mm'])
@@ -217,8 +218,10 @@ elif panel == "🌧️ Anomaly Detection":
             else:
                 st.warning("No 'Date' column found – scatter plot not available.")
 
+            # ===== Table of anomalies =====
             anomalies = anomalies.sort_values(by="Rainfall_mm", ascending=False)
             st.dataframe(anomalies)
+
             st.info("Red dots in the plot = detected extreme rainfall deviations.")
 
         st.markdown("</div>", unsafe_allow_html=True)
@@ -292,3 +295,4 @@ Developed by PROJECT – AHON Team<br>
 AI • Flood Risk • Geospatial Intelligence
 </footer>
 """, unsafe_allow_html=True)
+
