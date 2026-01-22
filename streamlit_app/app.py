@@ -168,21 +168,23 @@ elif panel == "🧠 Feature Engineering":
         st.warning("Upload dataset first.")
     else:
         df = df.copy()
+
+        # Create engineered features
         df["Rainfall_3day_avg"] = df["Rainfall_mm"].rolling(3).mean()
         df["Rainfall_7day_avg"] = df["Rainfall_mm"].rolling(7).mean()
         df["WaterLevel_change"] = df["WaterLevel_m"].diff()
         df["WaterLevel_rising"] = (df["WaterLevel_change"] > 0).astype(int)
 
-        # Select sample for display
+        # Select sample to display
         display_df = df[[
             "Rainfall_3day_avg","Rainfall_7day_avg","WaterLevel_change","WaterLevel_rising"
         ]].head()
 
-        # Replace NaNs with "N/A"
+        # Replace NaN with "N/A"
         display_df = display_df.fillna("N/A")
 
-        # Generate HTML table with enhanced styling
-        st.markdown("""
+        # Build modern table
+        table_html = """
         <div style="
             background: linear-gradient(145deg, #ffffff, #f0f4f8);
             border-radius: 20px;
@@ -198,32 +200,34 @@ elif panel == "🧠 Feature Engineering":
             ">
                 <thead>
                     <tr style='background-color:#e3f2fd;'>
-                        <th style='padding:12px; text-align:left; border-bottom:2px solid #90caf9;'>Rainfall 3-day Avg</th>
-                        <th style='padding:12px; text-align:left; border-bottom:2px solid #90caf9;'>Rainfall 7-day Avg</th>
-                        <th style='padding:12px; text-align:left; border-bottom:2px solid #90caf9;'>Water Level Change</th>
-                        <th style='padding:12px; text-align:left; border-bottom:2px solid #90caf9;'>Water Level Rising</th>
+                        <th style='padding:12px; text-align:right; border-bottom:2px solid #90caf9;'>Rainfall 3-day Avg</th>
+                        <th style='padding:12px; text-align:right; border-bottom:2px solid #90caf9;'>Rainfall 7-day Avg</th>
+                        <th style='padding:12px; text-align:right; border-bottom:2px solid #90caf9;'>Water Level Change</th>
+                        <th style='padding:12px; text-align:center; border-bottom:2px solid #90caf9;'>Water Level Rising</th>
                     </tr>
                 </thead>
                 <tbody>
-        """, unsafe_allow_html=True)
+        """
 
-        # Loop through rows for zebra striping
+        # Add table rows with zebra striping
         for i, row in display_df.iterrows():
             bg_color = "#ffffff" if i % 2 == 0 else "#f7f9fc"
-            st.markdown(f"""
+            table_html += f"""
                 <tr style='background-color:{bg_color};'>
                     <td style='padding:10px; text-align:right;'>{row['Rainfall_3day_avg']}</td>
                     <td style='padding:10px; text-align:right;'>{row['Rainfall_7day_avg']}</td>
                     <td style='padding:10px; text-align:right;'>{row['WaterLevel_change']}</td>
                     <td style='padding:10px; text-align:center;'>{row['WaterLevel_rising']}</td>
                 </tr>
-            """, unsafe_allow_html=True)
+            """
 
-        st.markdown("""
+        table_html += """
                 </tbody>
             </table>
         </div>
-        """, unsafe_allow_html=True)
+        """
+
+        st.markdown(table_html, unsafe_allow_html=True)
 
 # ==============================
 # ANOMALY DETECTION
