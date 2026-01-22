@@ -202,7 +202,7 @@ elif panel == "🌧️ Anomaly Detection":
             # ===== Scatter plot: Date vs Rainfall =====
             if 'Date' in df.columns:
                 df['Date'] = pd.to_datetime(df['Date'])
-                scatter = alt.Chart(df).mark_circle(size=20).encode(  # small circle size
+                scatter = alt.Chart(df).mark_circle(size=10).encode(  # small circle size
                     x='Date:T',
                     y='Rainfall_mm:Q',
                     color=alt.Color('Anomaly_Flag:N', scale=alt.Scale(domain=['Normal','Anomaly'], range=['#1e88e5','#e53935'])),
