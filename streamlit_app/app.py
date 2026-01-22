@@ -119,28 +119,31 @@ elif panel == "🧠 Feature Engineering":
         df["WaterLevel_change"] = df["WaterLevel_m"].diff()
         df["WaterLevel_rising"] = (df["WaterLevel_change"] > 0).astype(int)
 
-        # Ensure Date column
+        # Ensure Date column exists and is datetime
         if 'Date' in df.columns:
             df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
             df = df.dropna(subset=['Date'])
+            
+            # For charts: drop NaN in rolling averages / differences
+            chart_df = df.dropna(subset=['Rainfall_3day_avg','Rainfall_7day_avg','WaterLevel_change','WaterLevel_rising'])
         else:
             st.warning("No 'Date' column found. Charts will not be displayed.")
+            chart_df = pd.DataFrame()  # empty
 
         st.markdown("<div class='card'>", unsafe_allow_html=True)
         st.subheader("Feature Engineering Overview")
-        st.write("This section visualizes the engineered features for rainfall and water level dynamics.")
+        st.write("Visualizing engineered features for rainfall and water level dynamics.")
         st.markdown("</div>", unsafe_allow_html=True)
 
-        # Two cards side by side
         col1, col2 = st.columns(2)
 
-        # -------- Card 1: Rainfall --------
+        # -------- Rainfall Card --------
         with col1:
             st.markdown("<div class='card'>", unsafe_allow_html=True)
             st.subheader("Rainfall Moving Averages")
             st.write("3-day and 7-day rolling averages derived from rainfall sensor data.")
-            if 'Date' in df.columns:
-                rainfall_chart = alt.Chart(df).transform_fold(
+            if not chart_df.empty:
+                rainfall_chart = alt.Chart(chart_df).transform_fold(
                     ['Rainfall_3day_avg','Rainfall_7day_avg'], as_=['Metric','Value']
                 ).mark_line(interpolate='monotone').encode(
                     x=alt.X('Date:T', title='Date'),
@@ -151,13 +154,13 @@ elif panel == "🧠 Feature Engineering":
                 st.altair_chart(rainfall_chart, use_container_width=True)
             st.markdown("</div>", unsafe_allow_html=True)
 
-        # -------- Card 2: Water Level --------
+        # -------- Water Level Card --------
         with col2:
             st.markdown("<div class='card'>", unsafe_allow_html=True)
             st.subheader("Water Level Dynamics")
             st.write("Water level rising trends and rate of change over time.")
-            if 'Date' in df.columns:
-                water_chart = alt.Chart(df).transform_fold(
+            if not chart_df.empty:
+                water_chart = alt.Chart(chart_df).transform_fold(
                     ['WaterLevel_rising','WaterLevel_change'], as_=['Metric','Value']
                 ).mark_line(interpolate='monotone').encode(
                     x=alt.X('Date:T', title='Date'),
@@ -216,7 +219,6 @@ elif panel == "🌧️ Anomaly Detection":
             st.markdown("<div style='padding:1rem; border-radius:15px; box-shadow:0px 10px 25px rgba(0,0,0,0.1); background-color:white;'>", unsafe_allow_html=True)
             st.dataframe(anomalies)
             st.markdown("</div>", unsafe_allow_html=True)
-
             st.info("Red dots in the plot = detected extreme rainfall deviations.")
         st.markdown("</div>", unsafe_allow_html=True)
 
