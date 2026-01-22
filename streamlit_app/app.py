@@ -187,6 +187,111 @@ elif panel == "🌧️ Anomaly Detection":
     if df is None:
         st.warning("Upload dataset first.")
     else:
+        df = df.copy()
         iso = IsolationForest(contamination=0.05, random_state=42)
         df["Rainfall_Anomaly"] = iso.fit_predict(df[["Rainfall_mm"]].fillna(0))
-        df["Anomaly_Flag"] = df["Rainfall
+        df["Anomaly_Flag"] = df["Rainfall_Anomaly"].apply(lambda x: "Anomaly" if x == -1 else "Normal")
+
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
+        st.subheader("Rainfall Anomaly Detection")
+
+        anomalies = df[df["Rainfall_Anomaly"] == -1].copy()
+
+        if anomalies.empty:
+            st.info("No anomalies detected in the uploaded dataset.")
+        else:
+            # ===== Scatter plot: Date vs Rainfall =====
+            if 'Date' in df.columns:
+                df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+                df_plot = df.dropna(subset=['Date', 'Rainfall_mm'])
+
+                scatter = alt.Chart(df_plot).mark_circle(size=20).encode(
+                    x=alt.X('Date:T', axis=alt.Axis(title='Date', format='%Y-%m-%d')),
+                    y=alt.Y('Rainfall_mm:Q', title='Rainfall (mm)'),
+                    color=alt.Color('Anomaly_Flag:N', scale=alt.Scale(domain=['Normal','Anomaly'], range=['#1e88e5','#e53935'])),
+                    tooltip=['Date','Rainfall_mm','Anomaly_Flag']
+                ).properties(
+                    width=800,
+                    height=300
+                )
+                st.altair_chart(scatter, use_container_width=True)
+            else:
+                st.warning("No 'Date' column found – scatter plot not available.")
+
+            # ===== Table of anomalies =====
+            anomalies = anomalies.sort_values(by="Rainfall_mm", ascending=False)
+            st.dataframe(anomalies)
+
+            st.info("Red dots in the plot = detected extreme rainfall deviations.")
+
+        st.markdown("</div>", unsafe_allow_html=True)
+
+# ==============================
+# GEOSPATIAL MAPPING
+# ==============================
+elif panel == "🗺️ Geospatial Mapping":
+    if df is None:
+        st.warning("Upload dataset first.")
+    else:
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
+        st.subheader("Flood Risk Map")
+
+        m = folium.Map(location=[14.6, 121.0], zoom_start=10)
+        for _, row in df.head(100).iterrows():
+            color = "red" if row.get("FloodOccurrence",0)==1 else "blue"
+            folium.CircleMarker(
+                location=[row.get("Latitude",14.6), row.get("Longitude",121.0)],
+                radius=5, color=color, fill=True
+            ).add_to(m)
+
+        st_folium(m, width=900, height=500)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+# ==============================
+# INSIGHTS & AGGREGATIONS
+# ==============================
+elif panel == "📈 Insights & Aggregations":
+    if df is None:
+        st.warning("Upload dataset first.")
+    else:
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
+        st.subheader("Key Insights")
+
+        avg_rainfall = round(df["Rainfall_mm"].mean(), 2)
+        flood_rate = round(df["FloodOccurrence"].mean() * 100, 2)
+
+        cols = st.columns(2)
+        with cols[0]:
+            st.metric("Average Rainfall (mm)", avg_rainfall)
+        with cols[1]:
+            st.metric("Flood Occurrence Rate (%)", f"{flood_rate}%")
+
+        data = pd.DataFrame({
+            'Metric': ['Average Rainfall (mm)', 'Flood Occurrence Rate (%)'],
+            'Value': [avg_rainfall, flood_rate],
+            'Color': ['#1e88e5', '#e53935']
+        })
+
+        chart = alt.Chart(data).mark_bar(size=40).encode(
+            y=alt.Y('Metric', sort=None, title=''),
+            x=alt.X('Value', title='Value / Percent (%)'),
+            color=alt.Color('Color:N', scale=None, legend=None),
+            tooltip=['Metric', 'Value']
+        ).properties(
+            width=600,
+            height=200
+        )
+
+        st.altair_chart(chart, use_container_width=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+# ==============================
+# FOOTER
+# ==============================
+st.markdown("""
+<hr>
+<footer>
+Developed by PROJECT – AHON Team<br>
+AI • Flood Risk • Geospatial Intelligence
+</footer>
+""", unsafe_allow_html=True)
