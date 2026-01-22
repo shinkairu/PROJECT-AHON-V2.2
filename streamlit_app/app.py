@@ -168,17 +168,61 @@ elif panel == "🧠 Feature Engineering":
         st.warning("Upload dataset first.")
     else:
         df = df.copy()
+        # Calculate features
         df["Rainfall_3day_avg"] = df["Rainfall_mm"].rolling(3).mean()
         df["Rainfall_7day_avg"] = df["Rainfall_mm"].rolling(7).mean()
         df["WaterLevel_change"] = df["WaterLevel_m"].diff()
         df["WaterLevel_rising"] = (df["WaterLevel_change"] > 0).astype(int)
 
+        # Show engineered features table
         st.markdown("<div class='card'>", unsafe_allow_html=True)
         st.subheader("Engineered Features (Sample)")
         st.dataframe(df[[
-            "Rainfall_3day_avg","Rainfall_7day_avg","WaterLevel_change","WaterLevel_rising"
+            "Rainfall_3day_avg", "Rainfall_7day_avg", "WaterLevel_change", "WaterLevel_rising"
         ]].head())
         st.markdown("</div>", unsafe_allow_html=True)
+
+        # Ensure Date is datetime
+        if 'Date' in df.columns:
+            df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+            df_plot = df.dropna(subset=['Date', 'Rainfall_3day_avg', 'Rainfall_7day_avg', 
+                                         'WaterLevel_m', 'WaterLevel_change'])
+
+            # ===== Rainfall Moving Averages =====
+            st.markdown("<div class='card'>", unsafe_allow_html=True)
+            st.subheader("Rainfall Moving Averages")
+            rainfall_chart = alt.Chart(df_plot).transform_fold(
+                ['Rainfall_3day_avg','Rainfall_7day_avg'],
+                as_=['Metric','Value']
+            ).mark_line(point=True).encode(
+                x=alt.X('Date:T', title='Date'),
+                y=alt.Y('Value:Q', title='Rainfall (mm)'),
+                color=alt.Color('Metric:N', scale=alt.Scale(range=['#1e88e5','#90caf9'])),
+                tooltip=['Date','Metric','Value']
+            ).properties(
+                width=600,
+                height=300
+            )
+            st.altair_chart(rainfall_chart, use_container_width=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+
+            # ===== Water Level Dynamics =====
+            st.markdown("<div class='card'>", unsafe_allow_html=True)
+            st.subheader("Water Level Dynamics")
+            water_chart = alt.Chart(df_plot).transform_fold(
+                ['WaterLevel_m','WaterLevel_change'],
+                as_=['Metric','Value']
+            ).mark_line(point=True).encode(
+                x=alt.X('Date:T', title='Date'),
+                y=alt.Y('Value:Q', title='Water Level (m)'),
+                color=alt.Color('Metric:N', scale=alt.Scale(range=['#1e88e5','#90caf9'])),
+                tooltip=['Date','Metric','Value']
+            ).properties(
+                width=600,
+                height=300
+            )
+            st.altair_chart(water_chart, use_container_width=True)
+            st.markdown("</div>", unsafe_allow_html=True)
 
 # ==============================
 # ANOMALY DETECTION
@@ -187,7 +231,6 @@ elif panel == "🌧️ Anomaly Detection":
     if df is None:
         st.warning("Upload dataset first.")
     else:
-        df = df.copy()
         iso = IsolationForest(contamination=0.05, random_state=42)
         df["Rainfall_Anomaly"] = iso.fit_predict(df[["Rainfall_mm"]].fillna(0))
         df["Anomaly_Flag"] = df["Rainfall_Anomaly"].apply(lambda x: "Anomaly" if x == -1 else "Normal")
@@ -200,16 +243,13 @@ elif panel == "🌧️ Anomaly Detection":
         if anomalies.empty:
             st.info("No anomalies detected in the uploaded dataset.")
         else:
-            # ===== Scatter plot: Date vs Rainfall =====
             if 'Date' in df.columns:
-                df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
-                df_plot = df.dropna(subset=['Date', 'Rainfall_mm'])
-
-                scatter = alt.Chart(df_plot).mark_circle(size=20).encode(
-                    x=alt.X('Date:T', axis=alt.Axis(title='Date', format='%Y-%m-%d')),
-                    y=alt.Y('Rainfall_mm:Q', title='Rainfall (mm)'),
+                df['Date'] = pd.to_datetime(df['Date'])
+                scatter = alt.Chart(df).mark_circle(size=20).encode(
+                    x='Date:T',
+                    y='Rainfall_mm:Q',
                     color=alt.Color('Anomaly_Flag:N', scale=alt.Scale(domain=['Normal','Anomaly'], range=['#1e88e5','#e53935'])),
-                    tooltip=['Date','Rainfall_mm','Anomaly_Flag']
+                    tooltip=['Date', 'Rainfall_mm', 'Anomaly_Flag']
                 ).properties(
                     width=800,
                     height=300
@@ -218,10 +258,8 @@ elif panel == "🌧️ Anomaly Detection":
             else:
                 st.warning("No 'Date' column found – scatter plot not available.")
 
-            # ===== Table of anomalies =====
             anomalies = anomalies.sort_values(by="Rainfall_mm", ascending=False)
             st.dataframe(anomalies)
-
             st.info("Red dots in the plot = detected extreme rainfall deviations.")
 
         st.markdown("</div>", unsafe_allow_html=True)
@@ -238,7 +276,7 @@ elif panel == "🗺️ Geospatial Mapping":
 
         m = folium.Map(location=[14.6, 121.0], zoom_start=10)
         for _, row in df.head(100).iterrows():
-            color = "red" if row.get("FloodOccurrence",0)==1 else "blue"
+            color = "red" if row.get("FloodOccurrence", 0)==1 else "blue"
             folium.CircleMarker(
                 location=[row.get("Latitude",14.6), row.get("Longitude",121.0)],
                 radius=5, color=color, fill=True
