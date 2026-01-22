@@ -90,6 +90,16 @@ body, .stApp {
 }
 .stSidebar .css-1d391kg { color: white; }
 
+/* FILE UPLOADER CARD */
+.upload-card {
+    background: linear-gradient(145deg, #ffffff, #e0f7fa);
+    border-radius: 20px;
+    padding: 1.5rem;
+    box-shadow: 0px 12px 28px rgba(30,136,229,0.2);
+    margin-bottom: 1.5rem;
+    animation: pulse 4s infinite;
+}
+
 /* TABLE HIGHLIGHT ON HOVER */
 .stDataFrame tbody tr:hover {
     background-color: rgba(30,136,229,0.08);
@@ -124,10 +134,14 @@ panel = st.sidebar.radio(
 def load_data(uploaded_file):
     return pd.read_csv(uploaded_file)
 
+# Custom uploader in a card style
+st.sidebar.markdown("<div class='upload-card'>", unsafe_allow_html=True)
 uploaded_file = st.sidebar.file_uploader(
     "Upload Flood Dataset (CSV)",
     type=["csv"]
 )
+st.sidebar.markdown("</div>", unsafe_allow_html=True)
+
 df = load_data(uploaded_file) if uploaded_file else None
 
 # ==============================
@@ -295,4 +309,3 @@ Developed by PROJECT – AHON Team<br>
 AI • Flood Risk • Geospatial Intelligence
 </footer>
 """, unsafe_allow_html=True)
-
