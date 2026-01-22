@@ -189,12 +189,12 @@ elif panel == "🌧️ Anomaly Detection":
     else:
         iso = IsolationForest(contamination=0.05, random_state=42)
         df["Rainfall_Anomaly"] = iso.fit_predict(df[["Rainfall_mm"]].fillna(0))
+        df["Anomaly_Flag"] = df["Rainfall_Anomaly"].apply(lambda x: "Anomaly" if x == -1 else "Normal")
 
         st.markdown("<div class='card'>", unsafe_allow_html=True)
         st.subheader("Rainfall Anomaly Detection")
 
         anomalies = df[df["Rainfall_Anomaly"] == -1].copy()
-        df["Anomaly_Flag"] = df["Rainfall_Anomaly"].apply(lambda x: "Anomaly" if x == -1 else "Normal")
 
         if anomalies.empty:
             st.info("No anomalies detected in the uploaded dataset.")
@@ -202,7 +202,7 @@ elif panel == "🌧️ Anomaly Detection":
             # ===== Scatter plot: Date vs Rainfall =====
             if 'Date' in df.columns:
                 df['Date'] = pd.to_datetime(df['Date'])
-                scatter = alt.Chart(df).mark_circle(size=60).encode(
+                scatter = alt.Chart(df).mark_circle(size=20).encode(  # small circle size
                     x='Date:T',
                     y='Rainfall_mm:Q',
                     color=alt.Color('Anomaly_Flag:N', scale=alt.Scale(domain=['Normal','Anomaly'], range=['#1e88e5','#e53935'])),
@@ -215,13 +215,11 @@ elif panel == "🌧️ Anomaly Detection":
             else:
                 st.warning("No 'Date' column found – scatter plot not available.")
 
-            # ===== Highlighted table =====
+            # ===== Table of anomalies (no red background) =====
             anomalies = anomalies.sort_values(by="Rainfall_mm", ascending=False)
-            def highlight_anomaly(row):
-                return ['background-color: #ffcccc' if row.Rainfall_Anomaly == -1 else '' for _ in row]
+            st.dataframe(anomalies)
 
-            st.dataframe(anomalies.style.apply(highlight_anomaly, axis=1))
-            st.info("Red rows = detected extreme rainfall deviations.")
+            st.info("Red dots in the plot = detected extreme rainfall deviations.")
 
         st.markdown("</div>", unsafe_allow_html=True)
 
