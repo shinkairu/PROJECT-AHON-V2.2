@@ -231,29 +231,30 @@ elif panel == "📈 Insights & Aggregations":
         avg_rainfall = round(df["Rainfall_mm"].mean(), 2)
         flood_rate = round(df["FloodOccurrence"].mean() * 100, 2)
 
-        col1, col2 = st.columns(2)
-        with col1:
+        # Horizontal layout for metrics
+        cols = st.columns(2)
+        with cols[0]:
             st.metric("Average Rainfall (mm)", avg_rainfall)
-        with col2:
+        with cols[1]:
             st.metric("Flood Occurrence Rate (%)", f"{flood_rate}%")
 
-        # Graph – percent visualization
+        # Horizontal bar chart for both metrics
         data = pd.DataFrame({
-            'Metric': ['Flood Occurrence Rate'],
-            'Percent': [flood_rate]
+            'Metric': ['Average Rainfall (mm)', 'Flood Occurrence Rate (%)'],
+            'Value': [avg_rainfall, flood_rate],
+            'Color': ['#1e88e5', '#e53935']  # Blue for Rainfall, Red for Flood Rate
         })
 
         chart = alt.Chart(data).mark_bar(
-            cornerRadiusTopLeft=5,
-            cornerRadiusTopRight=5,
-            color='#1e88e5'
+            size=40
         ).encode(
-            x=alt.X('Metric', sort=None, title='Metric'),
-            y=alt.Y('Percent', title='Percent (%)'),
-            tooltip=['Metric', 'Percent']
+            y=alt.Y('Metric', sort=None, title=''),  # horizontal bars
+            x=alt.X('Value', title='Value / Percent (%)'),
+            color=alt.Color('Color:N', scale=None, legend=None),
+            tooltip=['Metric', 'Value']
         ).properties(
-            width=400,
-            height=300
+            width=600,
+            height=200
         )
 
         st.altair_chart(chart, use_container_width=True)
