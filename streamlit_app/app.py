@@ -192,8 +192,24 @@ elif panel == "🌧️ Anomaly Detection":
 
         st.markdown("<div class='card'>", unsafe_allow_html=True)
         st.subheader("Rainfall Anomaly Detection")
-        st.dataframe(df[df["Rainfall_Anomaly"] == -1][["Rainfall_mm"]].head())
-        st.info("Detected extreme rainfall deviations using Isolation Forest.")
+
+        anomalies = df[df["Rainfall_Anomaly"] == -1].copy()
+
+        if anomalies.empty:
+            st.info("No anomalies detected in the uploaded dataset.")
+        else:
+            anomalies = anomalies.sort_values(by="Rainfall_mm", ascending=False)
+
+            # Highlight anomalies in red
+            def highlight_anomaly(row):
+                return ['background-color: #ffcccc' if row.Rainfall_Anomaly == -1 else '' for _ in row]
+
+            st.dataframe(
+                anomalies.style.apply(highlight_anomaly, axis=1)
+            )
+
+            st.info("Red rows indicate detected extreme rainfall deviations using Isolation Forest.")
+
         st.markdown("</div>", unsafe_allow_html=True)
 
 # ==============================
@@ -227,28 +243,23 @@ elif panel == "📈 Insights & Aggregations":
         st.markdown("<div class='card'>", unsafe_allow_html=True)
         st.subheader("Key Insights")
 
-        # Metrics
         avg_rainfall = round(df["Rainfall_mm"].mean(), 2)
         flood_rate = round(df["FloodOccurrence"].mean() * 100, 2)
 
-        # Horizontal layout for metrics
         cols = st.columns(2)
         with cols[0]:
             st.metric("Average Rainfall (mm)", avg_rainfall)
         with cols[1]:
             st.metric("Flood Occurrence Rate (%)", f"{flood_rate}%")
 
-        # Horizontal bar chart for both metrics
         data = pd.DataFrame({
             'Metric': ['Average Rainfall (mm)', 'Flood Occurrence Rate (%)'],
             'Value': [avg_rainfall, flood_rate],
-            'Color': ['#1e88e5', '#e53935']  # Blue for Rainfall, Red for Flood Rate
+            'Color': ['#1e88e5', '#e53935']
         })
 
-        chart = alt.Chart(data).mark_bar(
-            size=40
-        ).encode(
-            y=alt.Y('Metric', sort=None, title=''),  # horizontal bars
+        chart = alt.Chart(data).mark_bar(size=40).encode(
+            y=alt.Y('Metric', sort=None, title=''),
             x=alt.X('Value', title='Value / Percent (%)'),
             color=alt.Color('Color:N', scale=None, legend=None),
             tooltip=['Metric', 'Value']
@@ -258,7 +269,6 @@ elif panel == "📈 Insights & Aggregations":
         )
 
         st.altair_chart(chart, use_container_width=True)
-
         st.markdown("</div>", unsafe_allow_html=True)
 
 # ==============================
