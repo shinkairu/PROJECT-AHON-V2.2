@@ -118,29 +118,29 @@ panel = st.sidebar.radio(
 )
 
 # ==============================
-# DATA UPLOAD
+# DATA UPLOAD (CARD STYLE)
 # ==============================
 @st.cache_data
 def load_data(uploaded_file):
     return pd.read_csv(uploaded_file)
 
-uploaded_file = st.sidebar.file_uploader(
-    "Upload Flood Dataset (CSV)",
+st.markdown("<div class='card'>", unsafe_allow_html=True)
+st.subheader("📂 Upload Flood Dataset (CSV)")
+
+uploaded_file = st.file_uploader(
+    "Drag and drop your CSV file here or click Browse Files",
     type=["csv"]
 )
-df = load_data(uploaded_file) if uploaded_file else None
 
-# ==============================
-# MAIN PANEL
-# ==============================
-if panel == "🏠 Main Panel":
-    st.markdown("""
-    <div class='hero'>
-        <h1>PROJECT – AHON</h1>
-        <p>AI-Powered Flood Risk Intelligence System</p>
-        <p><strong>Leveraging AI, anomaly detection, and geospatial mapping for early flood insights</strong></p>
-    </div>
-    """, unsafe_allow_html=True)
+if uploaded_file:
+    df = load_data(uploaded_file)
+    st.success("✅ Dataset uploaded successfully!")
+    st.dataframe(df.head())
+else:
+    df = None
+    st.info("ℹ️ Please upload a CSV file to proceed.")
+
+st.markdown("</div>", unsafe_allow_html=True)
 
 # ==============================
 # DATASET & EDA
