@@ -102,9 +102,10 @@ footer { text-align: center; opacity: 0.7; margin-top: 3rem; }
 """, unsafe_allow_html=True)
 
 # ==============================
-# SIDEBAR – NAVIGATION
+# SIDEBAR – NAVIGATION & FILE UPLOAD
 # ==============================
 st.sidebar.title("🌊 PROJECT – AHON")
+
 panel = st.sidebar.radio(
     "Navigate",
     [
@@ -117,30 +118,27 @@ panel = st.sidebar.radio(
     ]
 )
 
-# ==============================
-# DATA UPLOAD (CARD STYLE)
-# ==============================
 @st.cache_data
 def load_data(uploaded_file):
     return pd.read_csv(uploaded_file)
 
-st.markdown("<div class='card'>", unsafe_allow_html=True)
-st.subheader("📂 Upload Flood Dataset (CSV)")
-
-uploaded_file = st.file_uploader(
-    "Drag and drop your CSV file here or click Browse Files",
+uploaded_file = st.sidebar.file_uploader(
+    "Upload Flood Dataset (CSV)",
     type=["csv"]
 )
+df = load_data(uploaded_file) if uploaded_file else None
 
-if uploaded_file:
-    df = load_data(uploaded_file)
-    st.success("✅ Dataset uploaded successfully!")
-    st.dataframe(df.head())
-else:
-    df = None
-    st.info("ℹ️ Please upload a CSV file to proceed.")
-
-st.markdown("</div>", unsafe_allow_html=True)
+# ==============================
+# MAIN PANEL
+# ==============================
+if panel == "🏠 Main Panel":
+    st.markdown("""
+    <div class='hero'>
+        <h1>PROJECT – AHON</h1>
+        <p>AI-Powered Flood Risk Intelligence System</p>
+        <p><strong>Leveraging AI, anomaly detection, and geospatial mapping for early flood insights</strong></p>
+    </div>
+    """, unsafe_allow_html=True)
 
 # ==============================
 # DATASET & EDA
@@ -200,7 +198,6 @@ elif panel == "🌧️ Anomaly Detection":
         if anomalies.empty:
             st.info("No anomalies detected in the uploaded dataset.")
         else:
-            # ===== Scatter plot: Date vs Rainfall =====
             if 'Date' in df.columns:
                 df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
                 df_plot = df.dropna(subset=['Date', 'Rainfall_mm'])
@@ -218,10 +215,8 @@ elif panel == "🌧️ Anomaly Detection":
             else:
                 st.warning("No 'Date' column found – scatter plot not available.")
 
-            # ===== Table of anomalies =====
             anomalies = anomalies.sort_values(by="Rainfall_mm", ascending=False)
             st.dataframe(anomalies)
-
             st.info("Red dots in the plot = detected extreme rainfall deviations.")
 
         st.markdown("</div>", unsafe_allow_html=True)
@@ -295,4 +290,3 @@ Developed by PROJECT – AHON Team<br>
 AI • Flood Risk • Geospatial Intelligence
 </footer>
 """, unsafe_allow_html=True)
-
