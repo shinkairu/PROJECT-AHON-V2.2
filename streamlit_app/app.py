@@ -194,21 +194,34 @@ elif panel == "🌧️ Anomaly Detection":
         st.subheader("Rainfall Anomaly Detection")
 
         anomalies = df[df["Rainfall_Anomaly"] == -1].copy()
+        df["Anomaly_Flag"] = df["Rainfall_Anomaly"].apply(lambda x: "Anomaly" if x == -1 else "Normal")
 
         if anomalies.empty:
             st.info("No anomalies detected in the uploaded dataset.")
         else:
-            anomalies = anomalies.sort_values(by="Rainfall_mm", ascending=False)
+            # ===== Scatter plot: Date vs Rainfall =====
+            if 'Date' in df.columns:
+                df['Date'] = pd.to_datetime(df['Date'])
+                scatter = alt.Chart(df).mark_circle(size=60).encode(
+                    x='Date:T',
+                    y='Rainfall_mm:Q',
+                    color=alt.Color('Anomaly_Flag:N', scale=alt.Scale(domain=['Normal','Anomaly'], range=['#1e88e5','#e53935'])),
+                    tooltip=['Date', 'Rainfall_mm', 'Anomaly_Flag']
+                ).properties(
+                    width=800,
+                    height=300
+                )
+                st.altair_chart(scatter, use_container_width=True)
+            else:
+                st.warning("No 'Date' column found – scatter plot not available.")
 
-            # Highlight anomalies in red
+            # ===== Highlighted table =====
+            anomalies = anomalies.sort_values(by="Rainfall_mm", ascending=False)
             def highlight_anomaly(row):
                 return ['background-color: #ffcccc' if row.Rainfall_Anomaly == -1 else '' for _ in row]
 
-            st.dataframe(
-                anomalies.style.apply(highlight_anomaly, axis=1)
-            )
-
-            st.info("Red rows indicate detected extreme rainfall deviations using Isolation Forest.")
+            st.dataframe(anomalies.style.apply(highlight_anomaly, axis=1))
+            st.info("Red rows = detected extreme rainfall deviations.")
 
         st.markdown("</div>", unsafe_allow_html=True)
 
