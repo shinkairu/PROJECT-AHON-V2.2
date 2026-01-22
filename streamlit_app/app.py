@@ -240,12 +240,3 @@ Developed by PROJECT – AHON Team<br>
 AI • Flood Risk • Geospatial Intelligence
 </footer>
 """, unsafe_allow_html=True)
-
-
-
-ayusin mo nga yung code na to sa github yan
-
-lagyan mo ng mas maayos na ui
-
-
-github and streamlit gamit ko dito
