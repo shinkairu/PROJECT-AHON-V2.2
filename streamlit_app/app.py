@@ -89,11 +89,13 @@ body, .stApp {
     padding: 1.5rem;
     box-shadow: 0px 12px 28px rgba(30,136,229,0.2);
     margin-bottom: 1.5rem;
-    color: #333; /* make text dark */
 }
-.upload-card .stFileUploader>div>div>div>input {
-    cursor: pointer;
-    color: #333; /* text color inside uploader */
+
+/* Make "Browse files" text dark and readable */
+.upload-card label, 
+.upload-card .stFileUploader>div>div>div>span {
+    color: #333 !important;
+    font-weight: 500;
 }
 
 /* TABLE HIGHLIGHT ON HOVER */
@@ -130,7 +132,7 @@ panel = st.sidebar.radio(
 def load_data(uploaded_file):
     return pd.read_csv(uploaded_file)
 
-# Custom uploader in a card style
+# Custom uploader in a card style (no pulse animation, readable text)
 st.sidebar.markdown("<div class='upload-card'>", unsafe_allow_html=True)
 uploaded_file = st.sidebar.file_uploader(
     "Upload Flood Dataset (CSV)",
@@ -210,7 +212,6 @@ elif panel == "🌧️ Anomaly Detection":
         if anomalies.empty:
             st.info("No anomalies detected in the uploaded dataset.")
         else:
-            # ===== Scatter plot: Date vs Rainfall =====
             if 'Date' in df.columns:
                 df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
                 df_plot = df.dropna(subset=['Date', 'Rainfall_mm'])
@@ -228,10 +229,8 @@ elif panel == "🌧️ Anomaly Detection":
             else:
                 st.warning("No 'Date' column found – scatter plot not available.")
 
-            # ===== Table of anomalies =====
             anomalies = anomalies.sort_values(by="Rainfall_mm", ascending=False)
             st.dataframe(anomalies)
-
             st.info("Red dots in the plot = detected extreme rainfall deviations.")
 
         st.markdown("</div>", unsafe_allow_html=True)
