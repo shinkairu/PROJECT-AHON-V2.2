@@ -37,18 +37,10 @@ body, .stApp {
     text-align: center;
     color: white;
     box-shadow: 0px 10px 40px rgba(30,136,229,0.25);
-    animation: pulse 4s infinite;
     margin-bottom: 2rem;
 }
 .hero h1 { font-size: 3rem; font-weight: 700; margin-bottom: 0.5rem; }
 .hero p { font-size: 1.2rem; margin-top:0.2rem; }
-
-/* PULSE ANIMATION */
-@keyframes pulse {
-    0% { transform: scale(1); opacity: 0.95; }
-    50% { transform: scale(1.02); opacity: 1; }
-    100% { transform: scale(1); opacity: 0.95; }
-}
 
 /* CARD STYLE */
 .card {
@@ -97,7 +89,11 @@ body, .stApp {
     padding: 1.5rem;
     box-shadow: 0px 12px 28px rgba(30,136,229,0.2);
     margin-bottom: 1.5rem;
-    animation: pulse 4s infinite;
+    color: #333; /* make text dark */
+}
+.upload-card .stFileUploader>div>div>div>input {
+    cursor: pointer;
+    color: #333; /* text color inside uploader */
 }
 
 /* TABLE HIGHLIGHT ON HOVER */
