@@ -113,22 +113,28 @@ elif panel == "🧠 Feature Engineering":
         st.warning("Upload dataset first.")
     else:
         df = df.copy()
-        # Compute features
-        df["Rainfall_3day_avg"] = df["Rainfall_mm"].rolling(3).mean()
-        df["Rainfall_7day_avg"] = df["Rainfall_mm"].rolling(7).mean()
-        df["WaterLevel_change"] = df["WaterLevel_m"].diff()
+
+        # --- Compute features ---
+        df["Rainfall_3day_avg"] = pd.to_numeric(df["Rainfall_mm"].rolling(3).mean(), errors='coerce')
+        df["Rainfall_7day_avg"] = pd.to_numeric(df["Rainfall_mm"].rolling(7).mean(), errors='coerce')
+        df["WaterLevel_change"] = pd.to_numeric(df["WaterLevel_m"].diff(), errors='coerce')
         df["WaterLevel_rising"] = (df["WaterLevel_change"] > 0).astype(int)
 
-        # Ensure Date column exists and is datetime
+        # --- Ensure Date column exists and is datetime ---
         if 'Date' in df.columns:
             df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
             df = df.dropna(subset=['Date'])
-            
-            # For charts: drop NaN in rolling averages / differences
-            chart_df = df.dropna(subset=['Rainfall_3day_avg','Rainfall_7day_avg','WaterLevel_change','WaterLevel_rising'])
+
+            # --- Prepare chart data (drop NaNs) ---
+            chart_df = df.dropna(subset=[
+                'Rainfall_3day_avg',
+                'Rainfall_7day_avg',
+                'WaterLevel_change',
+                'WaterLevel_rising'
+            ])
         else:
             st.warning("No 'Date' column found. Charts will not be displayed.")
-            chart_df = pd.DataFrame()  # empty
+            chart_df = pd.DataFrame()
 
         st.markdown("<div class='card'>", unsafe_allow_html=True)
         st.subheader("Feature Engineering Overview")
@@ -137,11 +143,12 @@ elif panel == "🧠 Feature Engineering":
 
         col1, col2 = st.columns(2)
 
-        # -------- Rainfall Card --------
+        # -------- Rainfall Moving Averages Card --------
         with col1:
             st.markdown("<div class='card'>", unsafe_allow_html=True)
             st.subheader("Rainfall Moving Averages")
             st.write("3-day and 7-day rolling averages derived from rainfall sensor data.")
+
             if not chart_df.empty:
                 rainfall_chart = alt.Chart(chart_df).transform_fold(
                     ['Rainfall_3day_avg','Rainfall_7day_avg'], as_=['Metric','Value']
@@ -152,13 +159,15 @@ elif panel == "🧠 Feature Engineering":
                     tooltip=['Date','Metric','Value']
                 ).properties(height=300, width=400)
                 st.altair_chart(rainfall_chart, use_container_width=True)
+
             st.markdown("</div>", unsafe_allow_html=True)
 
-        # -------- Water Level Card --------
+        # -------- Water Level Dynamics Card --------
         with col2:
             st.markdown("<div class='card'>", unsafe_allow_html=True)
             st.subheader("Water Level Dynamics")
             st.write("Water level rising trends and rate of change over time.")
+
             if not chart_df.empty:
                 water_chart = alt.Chart(chart_df).transform_fold(
                     ['WaterLevel_rising','WaterLevel_change'], as_=['Metric','Value']
@@ -169,9 +178,10 @@ elif panel == "🧠 Feature Engineering":
                     tooltip=['Date','Metric','Value']
                 ).properties(height=300, width=400)
                 st.altair_chart(water_chart, use_container_width=True)
+
             st.markdown("</div>", unsafe_allow_html=True)
 
-        # -------- Engineering Notes --------
+        # -------- Engineering Notes Card --------
         st.markdown("""
         <div style='padding:1.5rem; border-radius:15px; box-shadow:0px 10px 25px rgba(0,0,0,0.1); background-color:#e3f2fd; margin-top:1rem;'>
             <h4>Engineering Notes</h4>
@@ -234,7 +244,10 @@ elif panel == "🗺️ Geospatial Mapping":
         m = folium.Map(location=[14.6,121.0], zoom_start=10)
         for _, row in df.head(100).iterrows():
             color = "red" if row.get("FloodOccurrence",0)==1 else "blue"
-            folium.CircleMarker(location=[row.get("Latitude",14.6), row.get("Longitude",121.0)], radius=5, color=color, fill=True).add_to(m)
+            folium.CircleMarker(
+                location=[row.get("Latitude",14.6), row.get("Longitude",121.0)],
+                radius=5, color=color, fill=True
+            ).add_to(m)
         st_folium(m, width=900, height=500)
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -255,9 +268,11 @@ elif panel == "📈 Insights & Aggregations":
         with cols[0]: st.metric("Average Rainfall (mm)", avg_rainfall)
         with cols[1]: st.metric("Flood Occurrence Rate (%)", f"{flood_rate}%")
 
-        data = pd.DataFrame({'Metric':['Average Rainfall (mm)','Flood Occurrence Rate (%)'],
-                             'Value':[avg_rainfall,flood_rate],
-                             'Color':['#1e88e5','#e53935']})
+        data = pd.DataFrame({
+            'Metric':['Average Rainfall (mm)','Flood Occurrence Rate (%)'],
+            'Value':[avg_rainfall,flood_rate],
+            'Color':['#1e88e5','#e53935']
+        })
         chart = alt.Chart(data).mark_bar(size=40).encode(
             y=alt.Y('Metric', sort=None, title=''),
             x=alt.X('Value', title='Value / Percent (%)'),
