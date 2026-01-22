@@ -118,16 +118,18 @@ panel = st.sidebar.radio(
     ]
 )
 
-@st.cache_data
-def load_data(uploaded_file):
-    return pd.read_csv(uploaded_file)
-
-uploaded_file = st.sidebar.file_uploader(
-    "Upload Flood Dataset (CSV)",
-    type=["csv"]
-)
-df = load_data(uploaded_file) if uploaded_file else None
-
+# ==============================
+# DATA UPLOAD
+# ==============================
+st.markdown("""
+<style>
+/* Make file uploader text visible in sidebar */
+div[data-testid="stFileUploader"] label, 
+div[data-testid="stFileUploader"] span {
+    color: black !important;
+}
+</style>
+""", unsafe_allow_html=True)
 # ==============================
 # MAIN PANEL
 # ==============================
