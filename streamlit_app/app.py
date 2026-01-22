@@ -37,10 +37,18 @@ body, .stApp {
     text-align: center;
     color: white;
     box-shadow: 0px 10px 40px rgba(30,136,229,0.25);
+    animation: pulse 4s infinite;
     margin-bottom: 2rem;
 }
 .hero h1 { font-size: 3rem; font-weight: 700; margin-bottom: 0.5rem; }
 .hero p { font-size: 1.2rem; margin-top:0.2rem; }
+
+/* PULSE ANIMATION */
+@keyframes pulse {
+    0% { transform: scale(1); opacity: 0.95; }
+    50% { transform: scale(1.02); opacity: 1; }
+    100% { transform: scale(1); opacity: 0.95; }
+}
 
 /* CARD STYLE */
 .card {
@@ -82,22 +90,6 @@ body, .stApp {
 }
 .stSidebar .css-1d391kg { color: white; }
 
-/* FILE UPLOADER CARD */
-.upload-card {
-    background: linear-gradient(145deg, #ffffff, #e0f7fa);
-    border-radius: 20px;
-    padding: 1.5rem;
-    box-shadow: 0px 12px 28px rgba(30,136,229,0.2);
-    margin-bottom: 1.5rem;
-}
-
-/* Make "Browse files" text dark and readable */
-.upload-card label, 
-.upload-card .stFileUploader>div>div>div>span {
-    color: #333 !important;
-    font-weight: 500;
-}
-
 /* TABLE HIGHLIGHT ON HOVER */
 .stDataFrame tbody tr:hover {
     background-color: rgba(30,136,229,0.08);
@@ -132,14 +124,10 @@ panel = st.sidebar.radio(
 def load_data(uploaded_file):
     return pd.read_csv(uploaded_file)
 
-# Custom uploader in a card style (no pulse animation, readable text)
-st.sidebar.markdown("<div class='upload-card'>", unsafe_allow_html=True)
 uploaded_file = st.sidebar.file_uploader(
     "Upload Flood Dataset (CSV)",
     type=["csv"]
 )
-st.sidebar.markdown("</div>", unsafe_allow_html=True)
-
 df = load_data(uploaded_file) if uploaded_file else None
 
 # ==============================
@@ -212,6 +200,7 @@ elif panel == "🌧️ Anomaly Detection":
         if anomalies.empty:
             st.info("No anomalies detected in the uploaded dataset.")
         else:
+            # ===== Scatter plot: Date vs Rainfall =====
             if 'Date' in df.columns:
                 df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
                 df_plot = df.dropna(subset=['Date', 'Rainfall_mm'])
@@ -229,8 +218,10 @@ elif panel == "🌧️ Anomaly Detection":
             else:
                 st.warning("No 'Date' column found – scatter plot not available.")
 
+            # ===== Table of anomalies =====
             anomalies = anomalies.sort_values(by="Rainfall_mm", ascending=False)
             st.dataframe(anomalies)
+
             st.info("Red dots in the plot = detected extreme rainfall deviations.")
 
         st.markdown("</div>", unsafe_allow_html=True)
@@ -304,3 +295,4 @@ Developed by PROJECT – AHON Team<br>
 AI • Flood Risk • Geospatial Intelligence
 </footer>
 """, unsafe_allow_html=True)
+
