@@ -89,7 +89,6 @@ if panel == "🏠 Main Panel":
         box-shadow:0 4px 12px rgba(0,0,0,0.1);
         transition: all 0.3s ease;
     }
-
     .hero-button:hover {
         background:#7dd3fc;
         color:white;
@@ -103,7 +102,7 @@ if panel == "🏠 Main Panel":
         margin-bottom:30px;
     }
 
-    /* Optional: make container responsive */
+    /* Responsive adjustments */
     @media (max-width: 768px) {
         .hero-container h1 {
             font-size:2.2rem !important;
@@ -151,6 +150,7 @@ if panel == "🏠 Main Panel":
         </div>
     </div>
     """, unsafe_allow_html=True)
+
 # ==============================
 # DATASET & EDA
 # ==============================
