@@ -314,13 +314,11 @@ elif panel == "📈 Insights":
         st.markdown("<div class='card'>", unsafe_allow_html=True)
         st.subheader("📅 Future Flood Prediction")
 
-        # Select any date (future or current)
         selected_date = st.date_input(
             "Select a date to predict flood risk",
             value=pd.to_datetime("2026-07-01")
         )
 
-        # Match month & day from historical data
         month = selected_date.month
         day = selected_date.day
 
@@ -375,7 +373,7 @@ elif panel == "📈 Insights":
                 )
 
         st.markdown("</div>", unsafe_allow_html=True)
-        
+
 # ==============================
 # FOOTER
 # ==============================
