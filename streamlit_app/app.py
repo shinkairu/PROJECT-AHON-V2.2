@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import folium
 from streamlit_folium import st_folium
-from sklearn.ensemble import IsolationForest
+from sklearn.ensemble import IsolationForest, RandomForestClassifier
 import altair as alt
 
 # ==============================
@@ -16,7 +16,7 @@ st.set_page_config(
 )
 
 # ==============================
-# GLOBAL CSS – MODERN SAAS UI
+# GLOBAL CSS – MODERN UI
 # ==============================
 st.markdown("""
 <style>
@@ -28,13 +28,11 @@ body, .stApp {
     color: #1f2937;
 }
 
-/* SIDEBAR */
 section[data-testid="stSidebar"] {
     background-color: #ffffff;
     border-right: 1px solid #e5e7eb;
 }
 
-/* HERO */
 .hero {
     background: linear-gradient(135deg, #1e3a8a, #3b82f6);
     border-radius: 30px;
@@ -47,7 +45,6 @@ section[data-testid="stSidebar"] {
 .hero h1 {
     font-size: 3.2rem;
     font-weight: 700;
-    margin-bottom: 0.5rem;
 }
 
 .hero span {
@@ -58,10 +55,8 @@ section[data-testid="stSidebar"] {
     max-width: 520px;
     font-size: 1.1rem;
     opacity: 0.95;
-    line-height: 1.6;
 }
 
-/* CARDS */
 .card {
     background: white;
     border-radius: 22px;
@@ -70,7 +65,6 @@ section[data-testid="stSidebar"] {
     margin-bottom: 1.5rem;
 }
 
-/* METRICS */
 .stMetric {
     background: white;
     border-radius: 20px;
@@ -78,14 +72,6 @@ section[data-testid="stSidebar"] {
     box-shadow: 0 8px 24px rgba(0,0,0,0.06);
 }
 
-/* BUTTONS */
-.stButton>button {
-    border-radius: 14px;
-    padding: 0.7rem 1.4rem;
-    font-weight: 600;
-}
-
-/* FOOTER */
 footer {
     text-align: center;
     color: #6b7280;
@@ -96,7 +82,7 @@ footer {
 """, unsafe_allow_html=True)
 
 # ==============================
-# SIDEBAR – NAVIGATION
+# SIDEBAR
 # ==============================
 st.sidebar.title("🌊 PROJECT AHON")
 st.sidebar.caption("AI Flood Risk Intelligence")
@@ -129,6 +115,33 @@ def load_data(file):
 df = load_data(uploaded_file) if uploaded_file else None
 
 # ==============================
+# ML MODEL
+# ==============================
+@st.cache_resource
+def train_flood_model(df):
+    data = df.dropna().copy()
+
+    features = [
+        "Rainfall_mm",
+        "WaterLevel_m",
+        "Rainfall_3day_avg",
+        "Rainfall_7day_avg",
+        "WaterLevel_change"
+    ]
+
+    X = data[features]
+    y = data["FloodOccurrence"]
+
+    model = RandomForestClassifier(
+        n_estimators=200,
+        max_depth=8,
+        random_state=42
+    )
+    model.fit(X, y)
+
+    return model
+
+# ==============================
 # MAIN PANEL
 # ==============================
 if panel == "🏠 Main Panel":
@@ -137,30 +150,23 @@ if panel == "🏠 Main Panel":
         <small>🟢 Live System Monitoring</small>
         <h1>Predict Floods.<br><span>Protect Communities.</span></h1>
         <p>
-            Project AHON leverages AI-powered meteorological analysis and
-            temporal pattern recognition to provide early flood risk insights
-            for smarter decision-making.
+            Project AHON uses AI-driven rainfall and water-level analysis
+            to generate early flood risk predictions and location-based insights.
         </p>
     </div>
     """, unsafe_allow_html=True)
-
-    c1, c2 = st.columns(2)
-    with c1:
-        st.button("📊 Explore Dataset", use_container_width=True)
-    with c2:
-        st.button("🗺️ View Risk Map", use_container_width=True)
 
 # ==============================
 # DATASET & EDA
 # ==============================
 elif panel == "📊 Dataset & EDA":
     if df is None:
-        st.warning("Please upload a dataset.")
+        st.warning("Upload a dataset first.")
     else:
         st.markdown("<div class='card'>", unsafe_allow_html=True)
         st.subheader("Dataset Preview")
         st.dataframe(df.head(), use_container_width=True)
-        st.caption(f"Rows: {df.shape[0]} | Columns: {df.shape[1]}")
+        st.caption(f"{df.shape[0]} rows × {df.shape[1]} columns")
         st.markdown("</div>", unsafe_allow_html=True)
 
         st.markdown("<div class='card'>", unsafe_allow_html=True)
@@ -216,8 +222,10 @@ elif panel == "🌧️ Anomaly Detection":
                 y="Rainfall_mm:Q",
                 color=alt.Color(
                     "Status",
-                    scale=alt.Scale(domain=["Normal", "Anomaly"],
-                                    range=["#2563eb", "#dc2626"])
+                    scale=alt.Scale(
+                        domain=["Normal", "Anomaly"],
+                        range=["#2563eb", "#dc2626"]
+                    )
                 ),
                 tooltip=["Date", "Rainfall_mm", "Status"]
             ).properties(height=320)
@@ -251,21 +259,80 @@ elif panel == "🗺️ Geospatial Mapping":
         st.markdown("</div>", unsafe_allow_html=True)
 
 # ==============================
-# INSIGHTS
+# INSIGHTS – FLOOD PREDICTION
 # ==============================
 elif panel == "📈 Insights":
     if df is None:
         st.warning("Upload dataset first.")
     else:
+        df = df.copy()
+        df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+
+        df["Rainfall_3day_avg"] = df["Rainfall_mm"].rolling(3).mean()
+        df["Rainfall_7day_avg"] = df["Rainfall_mm"].rolling(7).mean()
+        df["WaterLevel_change"] = df["WaterLevel_m"].diff()
+
+        model = train_flood_model(df)
+
         st.markdown("<div class='card'>", unsafe_allow_html=True)
-        st.subheader("Key Metrics")
+        st.subheader("📅 Flood Risk Prediction by Date")
 
-        avg_rain = round(df["Rainfall_mm"].mean(), 2)
-        flood_rate = round(df["FloodOccurrence"].mean() * 100, 2)
+        available_dates = df["Date"].dropna().dt.date.unique()
+        selected_date = st.date_input(
+            "Select a date",
+            value=available_dates[-1]
+        )
 
-        c1, c2 = st.columns(2)
-        c1.metric("Average Rainfall (mm)", avg_rain)
-        c2.metric("Flood Occurrence Rate (%)", flood_rate)
+        day_data = df[df["Date"].dt.date == selected_date]
+
+        if day_data.empty:
+            st.info("No data available for this date.")
+        else:
+            features = [
+                "Rainfall_mm",
+                "WaterLevel_m",
+                "Rainfall_3day_avg",
+                "Rainfall_7day_avg",
+                "WaterLevel_change"
+            ]
+
+            X_day = day_data[features].fillna(0)
+            day_data["Flood_Prediction"] = model.predict(X_day)
+            day_data["Flood_Probability"] = model.predict_proba(X_day)[:, 1]
+
+            avg_prob = day_data["Flood_Probability"].mean()
+
+            if avg_prob >= 0.7:
+                risk = "HIGH RISK"
+                icon = "🚨"
+            elif avg_prob >= 0.4:
+                risk = "MODERATE RISK"
+                icon = "⚠️"
+            else:
+                risk = "LOW RISK"
+                icon = "🟢"
+
+            st.metric(
+                f"{icon} Overall Flood Risk",
+                risk,
+                f"{round(avg_prob*100,2)}% probability"
+            )
+
+            st.markdown("### 📍 Predicted Flood-Prone Areas")
+            affected = day_data[day_data["Flood_Prediction"] == 1]
+
+            if affected.empty:
+                st.success("No flooding predicted for this date.")
+            else:
+                st.dataframe(
+                    affected[[
+                        "Location",
+                        "Rainfall_mm",
+                        "WaterLevel_m",
+                        "Flood_Probability"
+                    ]].sort_values("Flood_Probability", ascending=False),
+                    use_container_width=True
+                )
 
         st.markdown("</div>", unsafe_allow_html=True)
 
