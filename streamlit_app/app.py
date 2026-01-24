@@ -76,17 +76,56 @@ def train_flood_model(df):
 # ==============================
 if panel == "🏠 Main Panel":
     st.markdown("""
-    <div class="hero" style="text-align:center;">
-        <small>🟢 Live System Monitoring</small>
-        <h1 style="color:white; font-size:3.2rem; font-weight:700;">
-            Predict Floods.<br><span style="color:#7dd3fc;">Protect Communities.</span>
-        </h1>
-        <p style="margin:auto; max-width:520px; opacity:0.95;">
-            Project AHON uses AI-powered rainfall and water-level analysis
-            to provide early flood risk predictions and geospatial insights.
-        </p>
+    <div style="
+        display:flex;
+        justify-content:center;
+        align-items:center;
+        min-height:80vh;
+        background: linear-gradient(135deg, #0ea5e9, #3b82f6);
+        border-radius:20px;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+        text-align:center;
+        padding:50px 20px;
+        margin-bottom:30px;
+    ">
+        <div style="max-width:700px; color:white;">
+            <h1 style="
+                font-size:3rem;
+                font-weight:800;
+                line-height:1.2;
+                margin-bottom:20px;
+            ">
+                Predict Floods.<br>
+                <span style="color:#7dd3fc;">Protect Communities.</span>
+            </h1>
+
+            <p style="
+                font-size:1.1rem;
+                line-height:1.6;
+                opacity:0.9;
+                margin-bottom:30px;
+            ">
+                Project AHON leverages AI-powered rainfall and water-level analysis 
+                to provide <strong>early flood risk predictions</strong> and actionable geospatial insights.
+            </p>
+
+            <a href="#features" style="
+                display:inline-block;
+                padding:12px 28px;
+                background:#ffffff;
+                color:#0ea5e9;
+                font-weight:600;
+                border-radius:10px;
+                text-decoration:none;
+                box-shadow:0 4px 12px rgba(0,0,0,0.1);
+                transition: all 0.3s ease;
+            " onmouseover="this.style.background='#7dd3fc'; this.style.color='white';" onmouseout="this.style.background='white'; this.style.color='#0ea5e9';">
+                Explore Features
+            </a>
+        </div>
     </div>
     """, unsafe_allow_html=True)
+
 # ==============================
 # DATASET & EDA
 # ==============================
