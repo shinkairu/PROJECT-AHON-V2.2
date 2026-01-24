@@ -76,7 +76,48 @@ def train_flood_model(df):
 # ==============================
 if panel == "🏠 Main Panel":
     st.markdown("""
-    <div style="
+    <style>
+    /* Button styling */
+    .hero-button {
+        display:inline-block;
+        padding:12px 28px;
+        background:#ffffff;
+        color:#0ea5e9;
+        font-weight:600;
+        border-radius:10px;
+        text-decoration:none;
+        box-shadow:0 4px 12px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+    }
+
+    .hero-button:hover {
+        background:#7dd3fc;
+        color:white;
+    }
+
+    /* Paragraph styling */
+    .hero-text {
+        font-size:1.1rem;
+        line-height:1.6;
+        opacity:0.9;
+        margin-bottom:30px;
+    }
+
+    /* Optional: make container responsive */
+    @media (max-width: 768px) {
+        .hero-container h1 {
+            font-size:2.2rem !important;
+        }
+        .hero-text {
+            font-size:1rem !important;
+        }
+        .hero-button {
+            padding:10px 24px !important;
+        }
+    }
+    </style>
+
+    <div class="hero-container" style="
         display:flex;
         justify-content:center;
         align-items:center;
@@ -99,33 +140,17 @@ if panel == "🏠 Main Panel":
                 <span style="color:#7dd3fc;">Protect Communities.</span>
             </h1>
 
-            <p style="
-                font-size:1.1rem;
-                line-height:1.6;
-                opacity:0.9;
-                margin-bottom:30px;
-            ">
+            <p class="hero-text">
                 Project AHON leverages AI-powered rainfall and water-level analysis 
                 to provide <strong>early flood risk predictions</strong> and actionable geospatial insights.
             </p>
 
-            <a href="#features" style="
-                display:inline-block;
-                padding:12px 28px;
-                background:#ffffff;
-                color:#0ea5e9;
-                font-weight:600;
-                border-radius:10px;
-                text-decoration:none;
-                box-shadow:0 4px 12px rgba(0,0,0,0.1);
-                transition: all 0.3s ease;
-            " onmouseover="this.style.background='#7dd3fc'; this.style.color='white';" onmouseout="this.style.background='white'; this.style.color='#0ea5e9';">
+            <a href="#features" class="hero-button">
                 Explore Features
             </a>
         </div>
     </div>
     """, unsafe_allow_html=True)
-
 # ==============================
 # DATASET & EDA
 # ==============================
