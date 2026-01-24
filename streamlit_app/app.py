@@ -114,44 +114,6 @@ if panel == "🏠 Main Panel":
         transform: translateY(-3px);
         box-shadow: 0 6px 18px rgba(0,0,0,0.25);
     }
-
-    /* STAT CARDS */
-    .stats-container {
-        display: flex;
-        justify-content: center;
-        flex-wrap: wrap;
-        gap: 20px;
-        margin-top: 40px;
-    }
-
-    .stat-card {
-        background: #ffffff;
-        color: #0f172a;
-        padding: 20px 25px;
-        border-radius: 12px;
-        flex: 1 1 220px;
-        max-width: 220px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-        transition: transform 0.3s ease;
-    }
-
-    .stat-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-    }
-
-    .stat-card h3 {
-        margin: 0;
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: #0ea5e9;
-    }
-
-    .stat-card p {
-        margin: 5px 0 0 0;
-        font-size: 0.95rem;
-        opacity: 0.75;
-    }
     </style>
 
     <div class="hero-modern">
@@ -165,22 +127,28 @@ if panel == "🏠 Main Panel":
         </p>
         <a href="#feature-section" class="hero-btn">Explore Features</a>
 
-        <div class="stats-container">
-            <div class="stat-card">
-                <h3>95%</h3>
-                <p>Prediction Accuracy</p>
+        <!-- STAT CARDS -->
+        <div style="display:flex; justify-content:center; flex-wrap:wrap; gap:20px; margin-top:40px;">
+
+            <div style="background:#ffffff; color:#0f172a; padding:20px 25px; border-radius:12px; flex:1 1 180px; max-width:180px; text-align:center; box-shadow:0 4px 20px rgba(0,0,0,0.1);">
+                <h3 style="margin:0; font-size:1.5rem; font-weight:700; color:#0ea5e9;">95%</h3>
+                <p style="margin:5px 0 0 0; font-size:0.95rem; opacity:0.75;">Prediction Accuracy</p>
             </div>
-            <div class="stat-card">
-                <h3>4 Cities</h3>
-                <p>Coverage Area</p>
+
+            <div style="background:#ffffff; color:#0f172a; padding:20px 25px; border-radius:12px; flex:1 1 180px; max-width:180px; text-align:center; box-shadow:0 4px 20px rgba(0,0,0,0.1);">
+                <h3 style="margin:0; font-size:1.5rem; font-weight:700; color:#0ea5e9;">4 Cities</h3>
+                <p style="margin:5px 0 0 0; font-size:0.95rem; opacity:0.75;">Coverage Area</p>
             </div>
-            <div class="stat-card">
-                <h3>24/7</h3>
-                <p>Monitoring</p>
+
+            <div style="background:#ffffff; color:#0f172a; padding:20px 25px; border-radius:12px; flex:1 1 180px; max-width:180px; text-align:center; box-shadow:0 4px 20px rgba(0,0,0,0.1);">
+                <h3 style="margin:0; font-size:1.5rem; font-weight:700; color:#0ea5e9;">24/7</h3>
+                <p style="margin:5px 0 0 0; font-size:0.95rem; opacity:0.75;">Monitoring</p>
             </div>
+
         </div>
     </div>
     """, unsafe_allow_html=True)
+
 # ==============================
 # DATASET & EDA
 # ==============================
