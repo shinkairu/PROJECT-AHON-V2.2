@@ -89,6 +89,52 @@ if panel == "🏠 Main Panel":
     </div>
     """, unsafe_allow_html=True)
 
+    # ==============================
+    # TODAY/TOMORROW FLOOD PREDICTION
+    # ==============================
+    if df is None:
+        st.warning("Upload dataset first to see predictions.")
+    else:
+        df_main = df.copy()
+        df_main["Date"] = pd.to_datetime(df_main["Date"], errors="coerce")
+        df_main["Rainfall_3day_avg"] = df_main["Rainfall_mm"].rolling(3, min_periods=1).mean()
+        df_main["Rainfall_7day_avg"] = df_main["Rainfall_mm"].rolling(7, min_periods=1).mean()
+        df_main["WaterLevel_change"] = df_main["WaterLevel_m"].diff().fillna(0)
+
+        if "FloodOccurrence" in df_main.columns:
+            model = train_flood_model(df_main)
+
+            today = pd.Timestamp.now().normalize()
+            tomorrow = today + pd.Timedelta(days=1)
+
+            for check_date, label in [(today, "Today"), (tomorrow, "Tomorrow")]:
+                day_data = df_main[df_main["Date"].dt.date == check_date.date()]
+
+                st.markdown(f"<h3 style='text-align:center;'>{label}'s Flood Warning</h3>", unsafe_allow_html=True)
+
+                if day_data.empty:
+                    st.info(f"No data available for {label.lower()}.")
+                else:
+                    features = ["Rainfall_mm","WaterLevel_m","Rainfall_3day_avg","Rainfall_7day_avg","WaterLevel_change"]
+                    X_day = day_data[features].fillna(0)
+                    day_data["Flood_Prediction"] = model.predict(X_day)
+                    day_data["Flood_Probability"] = model.predict_proba(X_day)[:, 1]
+                    avg_prob = day_data["Flood_Probability"].mean()
+
+                    if avg_prob >= 0.7: risk, icon = "HIGH RISK", "🚨"
+                    elif avg_prob >= 0.4: risk, icon = "MODERATE RISK", "⚠️"
+                    else: risk, icon = "LOW RISK", "🟢"
+
+                    st.metric(f"{icon} {label}'s Overall Flood Risk", risk, f"{round(avg_prob*100,2)}% probability")
+
+                    affected = day_data[day_data["Flood_Prediction"] == 1]
+                    if not affected.empty:
+                        st.dataframe(
+                            affected[["Location","Rainfall_mm","WaterLevel_m","Flood_Probability"]].sort_values(
+                                "Flood_Probability", ascending=False
+                            ),
+                            use_container_width=True
+                        )
 # ==============================
 # DATASET & EDA
 # ==============================
