@@ -72,18 +72,113 @@ def train_flood_model(df):
     model.fit(X, y)
     return model
 # ==============================
-# MAIN PANEL
+# MAIN PANEL – MODERN HERO
 # ==============================
 if panel == "🏠 Main Panel":
     st.markdown("""
-    <div class="hero" style="text-align:center;">
-        <h1 style="color:white; font-size:3.2rem; font-weight:700;">
-            Predict Floods.<br><span style="color:#7dd3fc;">Protect Communities.</span>
+    <style>
+    /* HERO BACKGROUND */
+    .hero-modern {
+        position: relative;
+        background: linear-gradient(135deg, #0ea5e9, #7dd3fc);
+        color: #fff;
+        padding: 80px 20px;
+        border-radius: 16px;
+        text-align: center;
+        overflow: hidden;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        margin-bottom: 40px;
+    }
+
+    /* HIGHLIGHT SPAN */
+    .hero-modern h1 span {
+        color: #fef08a;
+    }
+
+    /* HERO BUTTONS */
+    .hero-modern .hero-btn {
+        display: inline-block;
+        margin-top: 25px;
+        padding: 12px 28px;
+        background: #fef08a;
+        color: #0f172a;
+        font-weight: 600;
+        border-radius: 8px;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    .hero-modern .hero-btn:hover {
+        background: #facc15;
+        transform: translateY(-3px);
+        box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+    }
+
+    /* STAT CARDS */
+    .stats-container {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 20px;
+        margin-top: 40px;
+    }
+
+    .stat-card {
+        background: #ffffff;
+        color: #0f172a;
+        padding: 20px 25px;
+        border-radius: 12px;
+        flex: 1 1 220px;
+        max-width: 220px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+
+    .stat-card h3 {
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #0ea5e9;
+    }
+
+    .stat-card p {
+        margin: 5px 0 0 0;
+        font-size: 0.95rem;
+        opacity: 0.75;
+    }
+    </style>
+
+    <div class="hero-modern">
+        <h1>
+            Predict Floods.<br>
+            <span>Protect Communities.</span>
         </h1>
-        <p style="margin:auto; max-width:520px; opacity:0.95;">
-            Project AHON uses AI-powered rainfall and water-level analysis
-            to provide early flood risk predictions and geospatial insights.
+        <p style="max-width:600px; margin:auto; opacity:0.9; line-height:1.5;">
+            Project AHON uses AI-powered rainfall and water-level analysis to provide 
+            early flood risk predictions and geospatial insights, helping communities stay safe.
         </p>
+        <a href="#feature-section" class="hero-btn">Explore Features</a>
+
+        <div class="stats-container">
+            <div class="stat-card">
+                <h3>95%</h3>
+                <p>Prediction Accuracy</p>
+            </div>
+            <div class="stat-card">
+                <h3>4 Cities</h3>
+                <p>Coverage Area</p>
+            </div>
+            <div class="stat-card">
+                <h3>24/7</h3>
+                <p>Monitoring</p>
+            </div>
+        </div>
     </div>
     """, unsafe_allow_html=True)
 # ==============================
