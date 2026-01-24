@@ -77,18 +77,17 @@ def train_flood_model(df):
 # ==============================
 if panel == "🏠 Main Panel":
     st.markdown("""
-    <div class="hero">
+    <div class="hero" style="text-align:center;">
         <small>🟢 Live System Monitoring</small>
-        <h1>Predict Floods.<br><span>Protect Communities.</span></h1>
-        <p>
+        <h1 style="color:white; font-size:3.2rem; font-weight:700;">
+            Predict Floods.<br><span style="color:#7dd3fc;">Protect Communities.</span>
+        </h1>
+        <p style="margin:auto; max-width:520px; opacity:0.95;">
             Project AHON uses AI-powered rainfall and water-level analysis
             to provide early flood risk predictions and geospatial insights.
         </p>
     </div>
     """, unsafe_allow_html=True)
-    c1, c2 = st.columns(2)
-    c1.button("📊 Explore Dataset", use_container_width=True)
-    c2.button("🗺️ View Risk Map", use_container_width=True)
 
 # ==============================
 # DATASET & EDA
