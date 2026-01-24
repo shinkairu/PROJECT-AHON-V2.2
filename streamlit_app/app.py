@@ -76,82 +76,17 @@ def train_flood_model(df):
 # ==============================
 if panel == "🏠 Main Panel":
     st.markdown("""
-    <style>
-    /* Button styling */
-    .hero-button {
-        display:inline-block;
-        padding:12px 28px;
-        background:#ffffff;
-        color:#0ea5e9;
-        font-weight:600;
-        border-radius:10px;
-        text-decoration:none;
-        box-shadow:0 4px 12px rgba(0,0,0,0.1);
-        transition: all 0.3s ease;
-    }
-    .hero-button:hover {
-        background:#7dd3fc;
-        color:white;
-    }
-
-    /* Paragraph styling */
-    .hero-text {
-        font-size:1.1rem;
-        line-height:1.6;
-        opacity:0.9;
-        margin-bottom:30px;
-    }
-
-    /* Responsive adjustments */
-    @media (max-width: 768px) {
-        .hero-container h1 {
-            font-size:2.2rem !important;
-        }
-        .hero-text {
-            font-size:1rem !important;
-        }
-        .hero-button {
-            padding:10px 24px !important;
-        }
-    }
-    </style>
-
-    <div class="hero-container" style="
-        display:flex;
-        justify-content:center;
-        align-items:center;
-        min-height:80vh;
-        background: linear-gradient(135deg, #0ea5e9, #3b82f6);
-        border-radius:20px;
-        box-shadow: 0 8px 20px rgba(0,0,0,0.15);
-        text-align:center;
-        padding:50px 20px;
-        margin-bottom:30px;
-    ">
-        <div style="max-width:700px; color:white;">
-            <h1 style="
-                font-size:3rem;
-                font-weight:800;
-                line-height:1.2;
-                margin-bottom:20px;
-            ">
-                Predict Floods.<br>
-                <span style="color:#7dd3fc;">Protect Communities.</span>
-            </h1>
-
-            <p class="hero-text">
-                Project AHON leverages AI-powered rainfall and water-level analysis 
-                to provide <strong>early flood risk predictions</strong> and actionable geospatial insights.
-            </p>
-
-            <a href="#features" class="hero-button">
-                Explore Features
-            </a>
-        </div>
+    <div class="hero" style="text-align:center;">
+        <small>🟢 Live System Monitoring</small>
+        <h1 style="color:white; font-size:3.2rem; font-weight:700;">
+            Predict Floods.<br><span style="color:#7dd3fc;">Protect Communities.</span>
+        </h1>
+        <p style="margin:auto; max-width:520px; opacity:0.95;">
+            Project AHON uses AI-powered rainfall and water-level analysis
+            to provide early flood risk predictions and geospatial insights.
+        </p>
     </div>
     """, unsafe_allow_html=True)
-
-
 # ==============================
 # DATASET & EDA
 # ==============================
@@ -321,5 +256,7 @@ PROJECT AHON • AI Flood Risk Intelligence<br>
 SDG 11 – Sustainable Cities & Communities
 </footer>
 """, unsafe_allow_html=True)
+
+
 
 
