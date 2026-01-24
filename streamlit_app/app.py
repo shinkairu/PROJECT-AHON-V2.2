@@ -259,7 +259,7 @@ elif panel == "🗺️ Geospatial Mapping":
         st.markdown("</div>", unsafe_allow_html=True)
 
 # ==============================
-# INSIGHTS – FLOOD PREDICTION
+# INSIGHTS – FUTURE FLOOD PREDICTION
 # ==============================
 elif panel == "📈 Insights":
     if df is None:
@@ -268,6 +268,7 @@ elif panel == "📈 Insights":
         df = df.copy()
         df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
 
+        # Feature engineering
         df["Rainfall_3day_avg"] = df["Rainfall_mm"].rolling(3).mean()
         df["Rainfall_7day_avg"] = df["Rainfall_mm"].rolling(7).mean()
         df["WaterLevel_change"] = df["WaterLevel_m"].diff()
@@ -275,18 +276,22 @@ elif panel == "📈 Insights":
         model = train_flood_model(df)
 
         st.markdown("<div class='card'>", unsafe_allow_html=True)
-        st.subheader("📅 Flood Risk Prediction by Date")
+        st.subheader("📅 Future Flood Prediction")
 
-        available_dates = df["Date"].dropna().dt.date.unique()
+        # Select any date (future or current)
         selected_date = st.date_input(
-            "Select a date",
-            value=available_dates[-1]
+            "Select a date to predict flood risk",
+            value=pd.to_datetime("2026-07-01")
         )
 
-        day_data = df[df["Date"].dt.date == selected_date]
+        # Match month & day from historical data
+        month = selected_date.month
+        day = selected_date.day
 
-        if day_data.empty:
-            st.info("No data available for this date.")
+        historical_same_day = df[(df["Date"].dt.month == month) & (df["Date"].dt.day == day)]
+
+        if historical_same_day.empty:
+            st.info("No historical data available for this day of the year.")
         else:
             features = [
                 "Rainfall_mm",
@@ -296,11 +301,11 @@ elif panel == "📈 Insights":
                 "WaterLevel_change"
             ]
 
-            X_day = day_data[features].fillna(0)
-            day_data["Flood_Prediction"] = model.predict(X_day)
-            day_data["Flood_Probability"] = model.predict_proba(X_day)[:, 1]
+            X_hist = historical_same_day[features].fillna(0)
+            predictions = model.predict(X_hist)
+            probabilities = model.predict_proba(X_hist)[:, 1]
 
-            avg_prob = day_data["Flood_Probability"].mean()
+            avg_prob = probabilities.mean()
 
             if avg_prob >= 0.7:
                 risk = "HIGH RISK"
@@ -313,29 +318,28 @@ elif panel == "📈 Insights":
                 icon = "🟢"
 
             st.metric(
-                f"{icon} Overall Flood Risk",
+                f"{icon} Predicted Flood Risk for {selected_date.strftime('%B %d')}",
                 risk,
-                f"{round(avg_prob*100,2)}% probability"
+                f"{round(avg_prob*100,2)}% probability based on historical data"
             )
 
-            st.markdown("### 📍 Predicted Flood-Prone Areas")
-            affected = day_data[day_data["Flood_Prediction"] == 1]
+            st.markdown("### 📍 Likely Flood-Prone Areas (Historical Pattern)")
+            affected = historical_same_day[predictions == 1]
 
             if affected.empty:
-                st.success("No flooding predicted for this date.")
+                st.success("No flooding historically recorded for this day.")
             else:
                 st.dataframe(
                     affected[[
                         "Location",
                         "Rainfall_mm",
-                        "WaterLevel_m",
-                        "Flood_Probability"
-                    ]].sort_values("Flood_Probability", ascending=False),
+                        "WaterLevel_m"
+                    ]].sort_values("WaterLevel_m", ascending=False),
                     use_container_width=True
                 )
 
         st.markdown("</div>", unsafe_allow_html=True)
-
+        
 # ==============================
 # FOOTER
 # ==============================
