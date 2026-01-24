@@ -90,51 +90,40 @@ if panel == "🏠 Main Panel":
     """, unsafe_allow_html=True)
 
     # ==============================
-    # TODAY/TOMORROW FLOOD PREDICTION
+    # TODAY SYNTHETIC FLOOD WARNING
     # ==============================
     if df is None:
-        st.warning("Upload dataset first to see predictions.")
+        st.warning("Upload dataset first to see warnings.")
     else:
         df_main = df.copy()
         df_main["Date"] = pd.to_datetime(df_main["Date"], errors="coerce")
-        df_main["Rainfall_3day_avg"] = df_main["Rainfall_mm"].rolling(3, min_periods=1).mean()
-        df_main["Rainfall_7day_avg"] = df_main["Rainfall_mm"].rolling(7, min_periods=1).mean()
-        df_main["WaterLevel_change"] = df_main["WaterLevel_m"].diff().fillna(0)
+        
+        # Today's month/day
+        today = pd.Timestamp.now()
+        today_monthday = (today.month, today.day)
 
-        if "FloodOccurrence" in df_main.columns:
-            model = train_flood_model(df_main)
+        # Find historical records with the same month/day
+        historical_today = df_main[df_main["Date"].dt.month.eq(today_monthday[0]) &
+                                   df_main["Date"].dt.day.eq(today_monthday[1])]
 
-            today = pd.Timestamp.now().normalize()
-            tomorrow = today + pd.Timedelta(days=1)
+        st.markdown(f"<h3 style='text-align:center;'>📢 Warning for Today ({today.strftime('%b %d, %Y')})</h3>", unsafe_allow_html=True)
 
-            for check_date, label in [(today, "Today"), (tomorrow, "Tomorrow")]:
-                day_data = df_main[df_main["Date"].dt.date == check_date.date()]
+        if historical_today.empty:
+            st.info("No historical data for this day to provide a warning.")
+        else:
+            # Check if any historical record had rainfall or flood
+            rain_flag = historical_today["Rainfall_mm"].sum() > 0
+            flood_flag = historical_today["FloodOccurrence"].sum() > 0
 
-                st.markdown(f"<h3 style='text-align:center;'>{label}'s Flood Warning</h3>", unsafe_allow_html=True)
+            if flood_flag:
+                warning = "🚨 Possible Flood Today! Historical data shows flooding on this day."
+            elif rain_flag:
+                warning = "⚠️ Possible Rain Today! Historical data shows rain on this day."
+            else:
+                warning = "🟢 Low Risk Today. Historically, no rain or flood on this day."
 
-                if day_data.empty:
-                    st.info(f"No data available for {label.lower()}.")
-                else:
-                    features = ["Rainfall_mm","WaterLevel_m","Rainfall_3day_avg","Rainfall_7day_avg","WaterLevel_change"]
-                    X_day = day_data[features].fillna(0)
-                    day_data["Flood_Prediction"] = model.predict(X_day)
-                    day_data["Flood_Probability"] = model.predict_proba(X_day)[:, 1]
-                    avg_prob = day_data["Flood_Probability"].mean()
+            st.markdown(f"<h2 style='text-align:center; color:#dc2626;'>{warning}</h2>", unsafe_allow_html=True)
 
-                    if avg_prob >= 0.7: risk, icon = "HIGH RISK", "🚨"
-                    elif avg_prob >= 0.4: risk, icon = "MODERATE RISK", "⚠️"
-                    else: risk, icon = "LOW RISK", "🟢"
-
-                    st.metric(f"{icon} {label}'s Overall Flood Risk", risk, f"{round(avg_prob*100,2)}% probability")
-
-                    affected = day_data[day_data["Flood_Prediction"] == 1]
-                    if not affected.empty:
-                        st.dataframe(
-                            affected[["Location","Rainfall_mm","WaterLevel_m","Flood_Probability"]].sort_values(
-                                "Flood_Probability", ascending=False
-                            ),
-                            use_container_width=True
-                        )
 # ==============================
 # DATASET & EDA
 # ==============================
