@@ -77,7 +77,6 @@ def train_flood_model(df):
 if panel == "🏠 Main Panel":
     st.markdown("""
     <div class="hero" style="text-align:center;">
-        <small>🟢 Live System Monitoring</small>
         <h1 style="color:white; font-size:3.2rem; font-weight:700;">
             Predict Floods.<br><span style="color:#7dd3fc;">Protect Communities.</span>
         </h1>
