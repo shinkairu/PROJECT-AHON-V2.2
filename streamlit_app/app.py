@@ -109,7 +109,7 @@ elif panel == "📊 Dataset & EDA":
         st.markdown("</div>", unsafe_allow_html=True)
 
 # ==============================
-# FEATURE ENGINEERING
+# FEATURE ENGINEERING (FIXED)
 # ==============================
 elif panel == "🧠 Feature Engineering":
     if df is None:
@@ -118,6 +118,8 @@ elif panel == "🧠 Feature Engineering":
         fe_df = df.copy()
         fe_df["Date"] = pd.to_datetime(fe_df["Date"], errors="coerce")
         fe_df = fe_df.sort_values("Date")
+
+        fe_df["Year"] = fe_df["Date"].dt.year
         fe_df["Rainfall_3day_avg"] = fe_df["Rainfall_mm"].rolling(3, min_periods=1).mean()
         fe_df["Rainfall_7day_avg"] = fe_df["Rainfall_mm"].rolling(7, min_periods=1).mean()
         fe_df["WaterLevel_change"] = fe_df["WaterLevel_m"].diff().fillna(0)
@@ -127,6 +129,29 @@ elif panel == "🧠 Feature Engineering":
         st.subheader("Engineered Features Preview")
         st.dataframe(fe_df.head(10), use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
+
+        years_available = sorted(fe_df["Year"].dropna().unique())
+        selected_years = st.multiselect("📅 Select year(s) to compare", years_available, default=years_available)
+        filtered_df = fe_df[fe_df["Year"].isin(selected_years)]
+
+        if not filtered_df.empty:
+            st.markdown("<div class='card'>", unsafe_allow_html=True)
+            x_axis = alt.X("monthdate(Date):T", title="Month")
+
+            for col, title in [
+                ("Rainfall_3day_avg","Rainfall 3-Day Avg"),
+                ("Rainfall_7day_avg","Rainfall 7-Day Avg"),
+                ("WaterLevel_change","Water Level Change"),
+            ]:
+                chart = alt.Chart(filtered_df).mark_line().encode(
+                    x=x_axis,
+                    y=alt.Y(f"{col}:Q", title=title),
+                    color="Year:N",
+                    tooltip=["Date:T","Year:N",col]
+                ).properties(height=280, title=title).interactive()
+                st.altair_chart(chart, use_container_width=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+
 
 # ==============================
 # ANOMALY DETECTION
