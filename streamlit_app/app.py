@@ -90,7 +90,6 @@ elif panel == "🧠 Feature Engineering":
                 ("Rainfall_3day_avg","Rainfall 3-Day Avg"),
                 ("Rainfall_7day_avg","Rainfall 7-Day Avg"),
                 ("WaterLevel_change","Water Level Change"),
-                ("WaterLevel_rising","Water Rising Indicator")
             ]:
                 chart = alt.Chart(filtered_df).mark_line().encode(
                     x=x_axis,
