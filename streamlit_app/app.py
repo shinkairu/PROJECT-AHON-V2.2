@@ -193,11 +193,11 @@ elif panel == "🧠 Feature Engineering":
         st.markdown("<div class='card'>", unsafe_allow_html=True)
         st.subheader("Engineered Features")
         st.dataframe(
-            df[[
-                "Date",
-                "Rainfall_3day_avg",
-                "Rainfall_7day_avg",
-                "WaterLevel_change",
+            df[[ 
+                "Date", 
+                "Rainfall_3day_avg", 
+                "Rainfall_7day_avg", 
+                "WaterLevel_change", 
                 "WaterLevel_rising"
             ]].head(10),
             use_container_width=True
@@ -211,42 +211,30 @@ elif panel == "🧠 Feature Engineering":
         if "Date" in df.columns:
             df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
 
-            # Rainfall rolling averages line chart
-            rainfall_chart = alt.Chart(df).mark_line().encode(
-                x="Date:T",
-                y="Rainfall_3day_avg:Q",
-                color=alt.value("#2563eb"),
-                tooltip=["Date", "Rainfall_3day_avg"]
-            ).properties(title="3-Day Rolling Rainfall Average", height=200)
+            # Combined rainfall line chart
+            rainfall_chart = alt.Chart(df).transform_fold(
+                ["Rainfall_3day_avg", "Rainfall_7day_avg"],
+                as_=['RollingPeriod', 'Rainfall']
+            ).mark_line().encode(
+                x='Date:T',
+                y='Rainfall:Q',
+                color='RollingPeriod:N',
+                tooltip=['Date', 'RollingPeriod', 'Rainfall']
+            ).properties(title="Rainfall Rolling Averages", height=250)
 
-            rainfall_chart_7 = alt.Chart(df).mark_line().encode(
+            # Water level line chart
+            water_chart = alt.Chart(df).mark_line(color="#16a34a").encode(
                 x="Date:T",
-                y="Rainfall_7day_avg:Q",
-                color=alt.value("#f97316"),
-                tooltip=["Date", "Rainfall_7day_avg"]
-            ).properties(title="7-Day Rolling Rainfall Average", height=200)
-
-            # Water level change line chart
-            water_change_chart = alt.Chart(df).mark_line(color="#16a34a").encode(
-                x="Date:T",
-                y="WaterLevel_change:Q",
-                tooltip=["Date", "WaterLevel_change"]
-            ).properties(title="Water Level Change", height=200)
-
-            # Water level rising bar chart
-            water_rising_chart = alt.Chart(df).mark_bar(color="#dc2626").encode(
-                x="Date:T",
-                y="WaterLevel_rising:Q",
-                tooltip=["Date", "WaterLevel_rising"]
-            ).properties(title="Water Level Rising Indicator", height=200)
+                y="WaterLevel_m:Q",
+                tooltip=["Date", "WaterLevel_m"]
+            ).properties(title="Water Level Over Time", height=250)
 
             # Display charts
             st.altair_chart(rainfall_chart, use_container_width=True)
-            st.altair_chart(rainfall_chart_7, use_container_width=True)
-            st.altair_chart(water_change_chart, use_container_width=True)
-            st.altair_chart(water_rising_chart, use_container_width=True)
+            st.altair_chart(water_chart, use_container_width=True)
 
         st.markdown("</div>", unsafe_allow_html=True)
+
 
 # ==============================
 # ANOMALY DETECTION
