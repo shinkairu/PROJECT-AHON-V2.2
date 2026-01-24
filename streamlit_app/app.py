@@ -151,6 +151,7 @@ if panel == "🏠 Main Panel":
     </div>
     """, unsafe_allow_html=True)
 
+
 # ==============================
 # DATASET & EDA
 # ==============================
