@@ -60,21 +60,36 @@ def load_data(file):
 df = load_data(uploaded_file) if uploaded_file else None
 
 # ==============================
+# ML MODEL
+# ==============================
+@st.cache_resource
+def train_flood_model(df):
+    data = df.dropna().copy()
+    features = ["Rainfall_mm", "WaterLevel_m", "Rainfall_3day_avg", "Rainfall_7day_avg", "WaterLevel_change"]
+    X = data[features]
+    y = data["FloodOccurrence"]
+    model = RandomForestClassifier(n_estimators=200, max_depth=8, random_state=42)
+    model.fit(X, y)
+    return model
+
+# ==============================
 # MAIN PANEL
 # ==============================
 if panel == "🏠 Main Panel":
     st.markdown("""
-    <div class="hero" style="text-align:center;">
+    <div class="hero">
         <small>🟢 Live System Monitoring</small>
-        <h1 style="color:white; font-size:3.2rem; font-weight:700;">
-            Predict Floods.<br><span style="color:#7dd3fc;">Protect Communities.</span>
-        </h1>
-        <p style="margin:auto; max-width:520px; opacity:0.95;">
+        <h1>Predict Floods.<br><span>Protect Communities.</span></h1>
+        <p>
             Project AHON uses AI-powered rainfall and water-level analysis
             to provide early flood risk predictions and geospatial insights.
         </p>
     </div>
     """, unsafe_allow_html=True)
+    c1, c2 = st.columns(2)
+    c1.button("📊 Explore Dataset", use_container_width=True)
+    c2.button("🗺️ View Risk Map", use_container_width=True)
+
 # ==============================
 # DATASET & EDA
 # ==============================
@@ -244,3 +259,5 @@ PROJECT AHON • AI Flood Risk Intelligence<br>
 SDG 11 – Sustainable Cities & Communities
 </footer>
 """, unsafe_allow_html=True)
+
+
