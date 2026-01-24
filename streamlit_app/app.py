@@ -72,80 +72,55 @@ def train_flood_model(df):
     model.fit(X, y)
     return model
 # ==============================
-# MAIN PANEL – MODERN HERO
+# MAIN PANEL
 # ==============================
 if panel == "🏠 Main Panel":
     st.markdown("""
     <style>
-    /* HERO BACKGROUND */
-    .hero-modern {
-        position: relative;
-        background: linear-gradient(135deg, #0ea5e9, #7dd3fc);
-        color: #fff;
-        padding: 80px 20px;
-        border-radius: 16px;
+    /* Heartbeat animation */
+    @keyframes heartbeat {
+        0%, 100% { transform: scale(1); }
+        25% { transform: scale(1.05); }
+        50% { transform: scale(1.1); }
+        75% { transform: scale(1.05); }
+    }
+
+    .hero {
         text-align: center;
-        overflow: hidden;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.15);
-        margin-bottom: 40px;
+        background: linear-gradient(135deg, #3b82f6, #60a5fa);
+        padding: 80px 40px;
+        border-radius: 20px;
+        animation: heartbeat 2s infinite;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
     }
 
-    /* HIGHLIGHT SPAN */
-    .hero-modern h1 span {
-        color: #fef08a;
+    .hero h1 {
+        color: white;
+        font-size: 4rem;
+        font-weight: 800;
+        margin-bottom: 20px;
     }
 
-    /* HERO BUTTONS */
-    .hero-modern .hero-btn {
-        display: inline-block;
-        margin-top: 25px;
-        padding: 12px 28px;
-        background: #fef08a;
-        color: #0f172a;
-        font-weight: 600;
-        border-radius: 8px;
-        text-decoration: none;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    .hero h1 span {
+        color: #7dd3fc;
     }
 
-    .hero-modern .hero-btn:hover {
-        background: #facc15;
-        transform: translateY(-3px);
-        box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+    .hero p {
+        margin: auto;
+        max-width: 600px;
+        font-size: 1.3rem;
+        opacity: 0.95;
     }
     </style>
 
-    <div class="hero-modern">
+    <div class="hero">
         <h1>
-            Predict Floods.<br>
-            <span>Protect Communities.</span>
+            Predict Floods.<br><span>Protect Communities.</span>
         </h1>
-        <p style="max-width:600px; margin:auto; opacity:0.9; line-height:1.5;">
-            Project AHON uses AI-powered rainfall and water-level analysis to provide 
-            early flood risk predictions and geospatial insights, helping communities stay safe.
+        <p>
+            Project AHON uses AI-powered rainfall and water-level analysis
+            to provide early flood risk predictions and geospatial insights.
         </p>
-        <a href="#feature-section" class="hero-btn">Explore Features</a>
-
-        <!-- STAT CARDS -->
-        <div style="display:flex; justify-content:center; flex-wrap:wrap; gap:20px; margin-top:40px;">
-
-            <div style="background:#ffffff; color:#0f172a; padding:20px 25px; border-radius:12px; flex:1 1 180px; max-width:180px; text-align:center; box-shadow:0 4px 20px rgba(0,0,0,0.1);">
-                <h3 style="margin:0; font-size:1.5rem; font-weight:700; color:#0ea5e9;">95%</h3>
-                <p style="margin:5px 0 0 0; font-size:0.95rem; opacity:0.75;">Prediction Accuracy</p>
-            </div>
-
-            <div style="background:#ffffff; color:#0f172a; padding:20px 25px; border-radius:12px; flex:1 1 180px; max-width:180px; text-align:center; box-shadow:0 4px 20px rgba(0,0,0,0.1);">
-                <h3 style="margin:0; font-size:1.5rem; font-weight:700; color:#0ea5e9;">4 Cities</h3>
-                <p style="margin:5px 0 0 0; font-size:0.95rem; opacity:0.75;">Coverage Area</p>
-            </div>
-
-            <div style="background:#ffffff; color:#0f172a; padding:20px 25px; border-radius:12px; flex:1 1 180px; max-width:180px; text-align:center; box-shadow:0 4px 20px rgba(0,0,0,0.1);">
-                <h3 style="margin:0; font-size:1.5rem; font-weight:700; color:#0ea5e9;">24/7</h3>
-                <p style="margin:5px 0 0 0; font-size:0.95rem; opacity:0.75;">Monitoring</p>
-            </div>
-
-        </div>
     </div>
     """, unsafe_allow_html=True)
 
