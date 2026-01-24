@@ -73,7 +73,7 @@ def train_flood_model(df):
     return model
 
 # ==============================
-# MAIN PANEL
+# MAIN PANEL – SYNTHETIC TODAY/TOMORROW WARNING
 # ==============================
 if panel == "🏠 Main Panel":
     st.markdown("""
@@ -89,41 +89,51 @@ if panel == "🏠 Main Panel":
     </div>
     """, unsafe_allow_html=True)
 
-    # ==============================
-    # TODAY SYNTHETIC FLOOD WARNING
-    # ==============================
     if df is None:
         st.warning("Upload dataset first to see warnings.")
     else:
         df_main = df.copy()
         df_main["Date"] = pd.to_datetime(df_main["Date"], errors="coerce")
-        
-        # Today's month/day
-        today = pd.Timestamp.now()
-        today_monthday = (today.month, today.day)
+        df_main = df_main.sort_values("Date")
 
-        # Find historical records with the same month/day
-        historical_today = df_main[df_main["Date"].dt.month.eq(today_monthday[0]) &
-                                   df_main["Date"].dt.day.eq(today_monthday[1])]
+        today = pd.Timestamp.now().normalize()
+        tomorrow = today + pd.Timedelta(days=1)
+
+        # Find the most recent historical record (closest past date in dataset)
+        nearest_date = df_main["Date"].max()
+        nearest_data = df_main[df_main["Date"] == nearest_date]
 
         st.markdown(f"<h3 style='text-align:center;'>📢 Warning for Today ({today.strftime('%b %d, %Y')})</h3>", unsafe_allow_html=True)
 
-        if historical_today.empty:
-            st.info("No historical data for this day to provide a warning.")
+        if nearest_data.empty:
+            st.info("No historical data available to generate a warning.")
         else:
-            # Check if any historical record had rainfall or flood
-            rain_flag = historical_today["Rainfall_mm"].sum() > 0
-            flood_flag = historical_today["FloodOccurrence"].sum() > 0
+            rain_flag = nearest_data["Rainfall_mm"].sum() > 0
+            flood_flag = nearest_data["FloodOccurrence"].sum() > 0
 
             if flood_flag:
-                warning = "🚨 Possible Flood Today! Historical data shows flooding on this day."
+                warning = "🚨 Possible Flood Today! Historical data shows flooding on the nearest date available."
             elif rain_flag:
-                warning = "⚠️ Possible Rain Today! Historical data shows rain on this day."
+                warning = "⚠️ Possible Rain Today! Historical data shows rain on the nearest date available."
             else:
-                warning = "🟢 Low Risk Today. Historically, no rain or flood on this day."
+                warning = "🟢 Low Risk Today. Historically, no rain or flood on the nearest date."
 
             st.markdown(f"<h2 style='text-align:center; color:#dc2626;'>{warning}</h2>", unsafe_allow_html=True)
 
+        # Optional: Tomorrow warning uses same logic
+        st.markdown(f"<h3 style='text-align:center;'>📢 Warning for Tomorrow ({tomorrow.strftime('%b %d, %Y')})</h3>", unsafe_allow_html=True)
+        if nearest_data.empty:
+            st.info("No historical data available to generate a tomorrow warning.")
+        else:
+            # Use same nearest historical record as proxy
+            if flood_flag:
+                warning_tomorrow = "🚨 Possible Flood Tomorrow! Historical pattern suggests risk."
+            elif rain_flag:
+                warning_tomorrow = "⚠️ Possible Rain Tomorrow! Historical pattern suggests risk."
+            else:
+                warning_tomorrow = "🟢 Low Risk Tomorrow. Historically, no rain or flood pattern detected."
+
+            st.markdown(f"<h2 style='text-align:center; color:#2563eb;'>{warning_tomorrow}</h2>", unsafe_allow_html=True)
 # ==============================
 # DATASET & EDA
 # ==============================
