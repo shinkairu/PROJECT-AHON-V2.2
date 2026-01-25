@@ -222,67 +222,102 @@ elif panel == "🗺️ Geospatial Mapping":
         st.markdown("<div class='card'>", unsafe_allow_html=True)
         st.subheader("Flood Risk Map (Anomaly-Aware)")
 
-        # -------------------------------
-        # Risk color logic (from Colab)
-        # -------------------------------
-        def risk_color(prob, anomaly):
-            if anomaly == 1:
-                return "purple"   # Extreme rainfall anomaly
-            elif prob >= 0.7:
-                return "red"      # High flood risk
-            elif prob >= 0.4:
-                return "orange"   # Moderate flood risk
-            else:
-                return "green"    # Low flood risk
+        # --------------------------------
+        # City → Coordinates (Metro Manila)
+        # --------------------------------
+        city_coords = {
+            "Quezon City": (14.6760, 121.0437),
+            "Manila": (14.5995, 120.9842),
+            "Marikina": (14.6507, 121.1029),
+            "Pasig": (14.5764, 121.0851)
+        }
 
-        # Center map over Metro Manila
-        m = folium.Map(location=[14.60, 121.00], zoom_start=11)
-
-        # Use most recent records per city if available
         map_df = df.copy()
+        map_df["Date"] = pd.to_datetime(map_df["Date"], errors="coerce")
 
-        # Safety checks (important for Streamlit robustness)
-        required_cols = [
-            "Latitude", "Longitude", "FloodRiskScore",
-            "Rainfall_Anomaly", "FloodPrediction",
-            "Location", "Date"
+        # --------------------------------
+        # Feature engineering (map-safe)
+        # --------------------------------
+        map_df["Rainfall_3day_avg"] = map_df["Rainfall_mm"].rolling(3, min_periods=1).mean()
+        map_df["Rainfall_7day_avg"] = map_df["Rainfall_mm"].rolling(7, min_periods=1).mean()
+        map_df["WaterLevel_change"] = map_df["WaterLevel_m"].diff().fillna(0)
+
+        # --------------------------------
+        # Train RF + compute probabilities
+        # --------------------------------
+        model = train_flood_model(map_df)
+
+        features = [
+            "Rainfall_mm",
+            "WaterLevel_m",
+            "Rainfall_3day_avg",
+            "Rainfall_7day_avg",
+            "WaterLevel_change"
         ]
 
-        if not all(col in map_df.columns for col in required_cols):
-            st.error("Required columns for geospatial mapping are missing.")
-        else:
-            for _, row in map_df.iterrows():
-                folium.CircleMarker(
-                    location=[
-                        row.get("Latitude", 14.6),
-                        row.get("Longitude", 121.0)
-                    ],
-                    radius=14,
-                    color=risk_color(
-                        row["FloodRiskScore"],
-                        row["Rainfall_Anomaly"]
-                    ),
-                    fill=True,
-                    fill_color=risk_color(
-                        row["FloodRiskScore"],
-                        row["Rainfall_Anomaly"]
-                    ),
-                    fill_opacity=0.7,
-                    popup=folium.Popup(
-                        f"""
-                        <b>City:</b> {row['Location']}<br>
-                        <b>Date:</b> {row['Date']}<br>
-                        <b>Flood Risk Score:</b> {row['FloodRiskScore']:.2f}<br>
-                        <b>Prediction:</b> {"Flood" if row['FloodPrediction'] == 1 else "No Flood"}<br>
-                        <b>Rainfall Anomaly:</b> {"Yes" if row['Rainfall_Anomaly'] == 1 else "No"}
-                        """,
-                        max_width=300
-                    )
-                ).add_to(m)
+        X_map = map_df[features].fillna(0)
+        map_df["FloodPrediction"] = model.predict(X_map)
+        map_df["FloodRiskScore"] = model.predict_proba(X_map)[:, 1]
 
-            st_folium(m, width=1000, height=520)
+        # --------------------------------
+        # Rainfall anomaly detection
+        # --------------------------------
+        iso = IsolationForest(contamination=0.05, random_state=42)
+        map_df["Rainfall_Anomaly"] = (
+            iso.fit_predict(map_df[["Rainfall_mm"]].fillna(0)) == -1
+        ).astype(int)
 
+        # --------------------------------
+        # Risk color logic (Colab-aligned)
+        # --------------------------------
+        def risk_color(prob, anomaly):
+            if anomaly == 1:
+                return "purple"
+            elif prob >= 0.7:
+                return "red"
+            elif prob >= 0.4:
+                return "orange"
+            else:
+                return "green"
+
+        # --------------------------------
+        # Build map
+        # --------------------------------
+        m = folium.Map(location=[14.60, 121.00], zoom_start=11)
+
+        latest_df = (
+            map_df.sort_values("Date")
+            .groupby("Location")
+            .tail(1)
+        )
+
+        for _, row in latest_df.iterrows():
+            coords = city_coords.get(row["Location"])
+            if coords is None:
+                continue
+
+            folium.CircleMarker(
+                location=coords,
+                radius=18,
+                color=risk_color(row["FloodRiskScore"], row["Rainfall_Anomaly"]),
+                fill=True,
+                fill_color=risk_color(row["FloodRiskScore"], row["Rainfall_Anomaly"]),
+                fill_opacity=0.75,
+                popup=folium.Popup(
+                    f"""
+                    <b>City:</b> {row['Location']}<br>
+                    <b>Date:</b> {row['Date'].date()}<br>
+                    <b>Flood Risk Score:</b> {row['FloodRiskScore']:.2f}<br>
+                    <b>Prediction:</b> {"Flood" if row['FloodPrediction'] == 1 else "No Flood"}<br>
+                    <b>Rainfall Anomaly:</b> {"Yes" if row['Rainfall_Anomaly'] == 1 else "No"}
+                    """,
+                    max_width=300
+                )
+            ).add_to(m)
+
+        st_folium(m, width=1000, height=520)
         st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 # ==============================
