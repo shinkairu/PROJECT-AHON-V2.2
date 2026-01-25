@@ -131,13 +131,11 @@ elif panel == "📊 Dataset & EDA":
     if df is None:
         st.warning("Upload a dataset first.")
     else:
-        st.markdown("<div class='card'>", unsafe_allow_html=True)
         st.subheader("Dataset Preview")
         st.dataframe(df.head(), use_container_width=True)
         st.caption(f"{df.shape[0]} rows × {df.shape[1]} columns")
         st.markdown("</div>", unsafe_allow_html=True)
 
-        st.markdown("<div class='card'>", unsafe_allow_html=True)
         st.subheader("Summary Statistics")
         st.dataframe(df.describe(), use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
