@@ -332,33 +332,101 @@ elif panel == "📈 Insights":
         hist_df = hist_df.dropna(subset=["Date"])
 
         # ------------------------------
-        # Extract Month-Day & Year
+        # Extract Month-Day
         # ------------------------------
         hist_df["MonthDay"] = hist_df["Date"].dt.strftime("%m-%d")
-        hist_df["Year"] = hist_df["Date"].dt.year
 
         st.markdown("<div class='card'>", unsafe_allow_html=True)
-        st.subheader("📅 Historical Flood Risk by Date")
+        st.subheader("📅 Historical Flood Warning (Date-Based)")
 
         # ------------------------------
-        # User Inputs
+        # Single Date Selector
         # ------------------------------
-        col1, col2 = st.columns(2)
-
-        with col1:
-            selected_date = st.date_input(
-                "Select Month & Day",
-                value=hist_df["Date"].max()
-            )
-
-        with col2:
-            selected_year = st.selectbox(
-                "Select Year (reference only)",
-                sorted(hist_df["Year"].unique())
-            )
+        selected_date = st.date_input(
+            "Select Month & Day",
+            value=hist_df["Date"].max()
+        )
 
         month_day = selected_date.strftime("%m-%d")
 
+        # ------------------------------
+        # Filter historical records
+        # ------------------------------
+        date_df = hist_df[hist_df["MonthDay"] == month_day]
+
+        if date_df.empty:
+            st.info("No historical data available for this date.")
+        else:
+            # ------------------------------
+            # Aggregate per location
+            # ------------------------------
+            summary = (
+                date_df
+                .groupby("Location")
+                .agg(
+                    flood_years=("FloodOccurrence", "sum"),
+                    total_years=("FloodOccurrence", "count"),
+                    avg_rainfall=("Rainfall_mm", "mean")
+                )
+                .reset_index()
+            )
+
+            summary["flood_rate"] = summary["flood_years"] / summary["total_years"]
+
+            # ------------------------------
+            # Warning logic (simple & realistic)
+            # ------------------------------
+            RAIN_THRESHOLD = 20  # adjust based on your data
+
+            def warning_label(row):
+                if row["flood_rate"] >= 0.4 and row["avg_rainfall"] >= RAIN_THRESHOLD:
+                    return "HIGH"
+                elif row["flood_rate"] > 0 or row["avg_rainfall"] >= RAIN_THRESHOLD:
+                    return "MODERATE"
+                else:
+                    return "LOW"
+
+            summary["Warning Level"] = summary.apply(warning_label, axis=1)
+
+            # ------------------------------
+            # City warnings
+            # ------------------------------
+            st.markdown("### 📍 Location-Based Historical Warnings")
+
+            for _, row in summary.iterrows():
+                if row["Warning Level"] == "HIGH":
+                    st.error(
+                        f"🚨 **{row['Location']}**\n\n"
+                        f"- Flood occurred in {int(row['flood_years'])} out of {int(row['total_years'])} years\n"
+                        f"- Avg rainfall: {row['avg_rainfall']:.1f} mm\n"
+                        f"⚠️ Possible flooding on this date based on history"
+                    )
+                elif row["Warning Level"] == "MODERATE":
+                    st.warning(
+                        f"⚠️ **{row['Location']}**\n\n"
+                        f"- Historical flood records present\n"
+                        f"- Avg rainfall: {row['avg_rainfall']:.1f} mm\n"
+                        f"⚠️ Stay alert on this date"
+                    )
+                else:
+                    st.success(
+                        f"🟢 **{row['Location']}** – No significant historical flooding"
+                    )
+
+            # ------------------------------
+            # Clean summary table
+            # ------------------------------
+            st.markdown("### 📊 Historical Summary")
+            st.dataframe(
+                summary[
+                    ["Location", "Warning Level",
+                     "flood_years", "total_years",
+                     "avg_rainfall"]
+                ].sort_values("Warning Level"),
+                use_container_width=True
+            )
+
+        st.markdown("</div>", unsafe_allow_html=True)
         # ------------------------------
         # Filter by Month-Day only
         # ------------------------------
