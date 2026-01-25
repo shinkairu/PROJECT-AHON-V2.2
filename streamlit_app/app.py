@@ -223,14 +223,13 @@ elif panel == "🗺️ Geospatial Mapping":
         import folium
         from streamlit_folium import st_folium
         import pandas as pd
-        import numpy as np
 
         st.markdown("<div class='card'>", unsafe_allow_html=True)
-        st.subheader("Animated Flood Risk Map (Metro Manila)")
+        st.subheader("Flood Risk Map (City-Based)")
 
-        # --------------------------------------------------
-        # 1. City → Coordinates (FIXED SOURCE OF TRUTH)
-        # --------------------------------------------------
+        # -----------------------------
+        # Fixed city coordinates
+        # -----------------------------
         city_coords = {
             "Quezon City": [14.6760, 121.0437],
             "Manila": [14.5995, 120.9842],
@@ -238,18 +237,13 @@ elif panel == "🗺️ Geospatial Mapping":
             "Pasig": [14.5764, 121.0851],
         }
 
-        # --------------------------------------------------
-        # 2. Normalize & prepare data
-        # --------------------------------------------------
         df = df.copy()
-        df.columns = df.columns.str.strip()
         df["Date"] = pd.to_datetime(df["Date"])
-
         df = df[df["Location"].isin(city_coords.keys())]
 
-        # --------------------------------------------------
-        # 3. Recreate missing engineered columns
-        # --------------------------------------------------
+        # -----------------------------
+        # Create missing fields safely
+        # -----------------------------
         if "FloodRiskScore" not in df.columns:
             df["FloodRiskScore"] = (
                 df["Rainfall"] - df["Rainfall"].min()
@@ -262,9 +256,9 @@ elif panel == "🗺️ Geospatial Mapping":
         if "FloodPrediction" not in df.columns:
             df["FloodPrediction"] = (df["FloodRiskScore"] >= 0.6).astype(int)
 
-        # --------------------------------------------------
-        # 4. Date slider (now accurate)
-        # --------------------------------------------------
+        # -----------------------------
+        # Date selector
+        # -----------------------------
         selected_date = st.slider(
             "Select Date",
             min_value=df["Date"].min().date(),
@@ -274,9 +268,9 @@ elif panel == "🗺️ Geospatial Mapping":
 
         day_df = df[df["Date"].dt.date == selected_date]
 
-        # --------------------------------------------------
-        # 5. Risk color logic
-        # --------------------------------------------------
+        # -----------------------------
+        # Risk color logic
+        # -----------------------------
         def risk_color(score, anomaly):
             if anomaly == 1:
                 return "purple"
@@ -287,13 +281,14 @@ elif panel == "🗺️ Geospatial Mapping":
             else:
                 return "green"
 
-        # --------------------------------------------------
-        # 6. Build map
-        # --------------------------------------------------
+        # -----------------------------
+        # Map
+        # -----------------------------
         m = folium.Map(location=[14.60, 121.00], zoom_start=11)
 
         for _, row in day_df.iterrows():
             lat, lon = city_coords[row["Location"]]
+
             color = risk_color(row["FloodRiskScore"], row["Rainfall_Anomaly"])
 
             folium.CircleMarker(
@@ -306,39 +301,14 @@ elif panel == "🗺️ Geospatial Mapping":
                 popup=(
                     f"<b>City:</b> {row['Location']}<br>"
                     f"<b>Date:</b> {row['Date'].date()}<br>"
-                    f"<b>Flood Risk Score:</b> {row['FloodRiskScore']:.2f}<br>"
-                    f"<b>Prediction:</b> {'Flood' if row['FloodPrediction']==1 else 'No Flood'}<br>"
-                    f"<b>Rainfall Anomaly:</b> {'Yes' if row['Rainfall_Anomaly']==1 else 'No'}"
+                    f"<b>Risk Score:</b> {row['FloodRiskScore']:.2f}<br>"
+                    f"<b>Prediction:</b> {'Flood' if row['FloodPrediction']==1 else 'No Flood'}"
                 )
             ).add_to(m)
 
-        # --------------------------------------------------
-        # 7. High-contrast legend (FIXED)
-        # --------------------------------------------------
-        legend_html = """
-        <div style="
-            position: fixed;
-            bottom: 30px;
-            left: 30px;
-            z-index: 9999;
-            background-color: rgba(255,255,255,0.95);
-            padding: 14px;
-            border-radius: 8px;
-            font-size: 14px;
-            color: black;
-            box-shadow: 0 0 12px rgba(0,0,0,0.3);
-        ">
-        <b>Flood Risk Legend</b><br>
-        <span style="color:green;">●</span> Low Risk<br>
-        <span style="color:orange;">●</span> Moderate Risk<br>
-        <span style="color:red;">●</span> High Risk<br>
-        <span style="color:purple;">●</span> Rainfall Anomaly
-        </div>
-        """
-        m.get_root().html.add_child(folium.Element(legend_html))
-
-        st_folium(m, width=1000, height=550)
+        st_folium(m, width=1000, height=520)
         st.markdown("</div>", unsafe_allow_html=True)
+
 
 # ==============================
 # INSIGHTS – FLOOD PREDICTION
