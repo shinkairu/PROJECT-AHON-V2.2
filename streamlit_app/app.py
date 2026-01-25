@@ -220,16 +220,70 @@ elif panel == "🗺️ Geospatial Mapping":
         st.warning("Upload dataset first.")
     else:
         st.markdown("<div class='card'>", unsafe_allow_html=True)
-        st.subheader("Flood Risk Map")
-        m = folium.Map(location=[14.6, 121.0], zoom_start=10)
-        for _, row in df.head(200).iterrows():
-            color = "red" if row.get("FloodOccurrence", 0) == 1 else "blue"
-            folium.CircleMarker(
-                location=[row.get("Latitude", 14.6), row.get("Longitude", 121.0)],
-                radius=5, color=color, fill=True
-            ).add_to(m)
-        st_folium(m, width=1000, height=520)
+        st.subheader("Flood Risk Map (Anomaly-Aware)")
+
+        # -------------------------------
+        # Risk color logic (from Colab)
+        # -------------------------------
+        def risk_color(prob, anomaly):
+            if anomaly == 1:
+                return "purple"   # Extreme rainfall anomaly
+            elif prob >= 0.7:
+                return "red"      # High flood risk
+            elif prob >= 0.4:
+                return "orange"   # Moderate flood risk
+            else:
+                return "green"    # Low flood risk
+
+        # Center map over Metro Manila
+        m = folium.Map(location=[14.60, 121.00], zoom_start=11)
+
+        # Use most recent records per city if available
+        map_df = df.copy()
+
+        # Safety checks (important for Streamlit robustness)
+        required_cols = [
+            "Latitude", "Longitude", "FloodRiskScore",
+            "Rainfall_Anomaly", "FloodPrediction",
+            "Location", "Date"
+        ]
+
+        if not all(col in map_df.columns for col in required_cols):
+            st.error("Required columns for geospatial mapping are missing.")
+        else:
+            for _, row in map_df.iterrows():
+                folium.CircleMarker(
+                    location=[
+                        row.get("Latitude", 14.6),
+                        row.get("Longitude", 121.0)
+                    ],
+                    radius=14,
+                    color=risk_color(
+                        row["FloodRiskScore"],
+                        row["Rainfall_Anomaly"]
+                    ),
+                    fill=True,
+                    fill_color=risk_color(
+                        row["FloodRiskScore"],
+                        row["Rainfall_Anomaly"]
+                    ),
+                    fill_opacity=0.7,
+                    popup=folium.Popup(
+                        f"""
+                        <b>City:</b> {row['Location']}<br>
+                        <b>Date:</b> {row['Date']}<br>
+                        <b>Flood Risk Score:</b> {row['FloodRiskScore']:.2f}<br>
+                        <b>Prediction:</b> {"Flood" if row['FloodPrediction'] == 1 else "No Flood"}<br>
+                        <b>Rainfall Anomaly:</b> {"Yes" if row['Rainfall_Anomaly'] == 1 else "No"}
+                        """,
+                        max_width=300
+                    )
+                ).add_to(m)
+
+            st_folium(m, width=1000, height=520)
+
         st.markdown("</div>", unsafe_allow_html=True)
+
 
 # ==============================
 # INSIGHTS – FLOOD PREDICTION
