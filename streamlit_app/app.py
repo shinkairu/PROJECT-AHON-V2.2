@@ -215,96 +215,61 @@ elif panel == "🌧️ Anomaly Detection":
 # ==============================
 # GEOSPATIAL MAPPING
 # ==============================
-# ==============================
-# GEOSPATIAL MAPPING (FIXED)
-# ==============================
 elif panel == "🗺️ Geospatial Mapping":
-
     if df is None:
         st.warning("Upload dataset first.")
     else:
         st.markdown("<div class='card'>", unsafe_allow_html=True)
-        st.subheader("Flood Risk Map (City-Based, Time-Aware)")
+        st.subheader("Flood Risk Map (Anomaly-Aware)")
 
-        # ----------------------------------
-        # Fixed city coordinates (NO LAT/LON COLUMNS REQUIRED)
-        # ----------------------------------
+        # --------------------------------
+        # City → Coordinates (Metro Manila)
+        # --------------------------------
         city_coords = {
             "Quezon City": (14.6760, 121.0437),
             "Manila": (14.5995, 120.9842),
             "Marikina": (14.6507, 121.1029),
-            "Pasig": (14.5764, 121.0851),
+            "Pasig": (14.5764, 121.0851)
         }
 
         map_df = df.copy()
-
-        # ----------------------------------
-        # Required column check
-        # ----------------------------------
-        required_cols = ["Date", "Location", "Rainfall_mm", "WaterLevel_m"]
-        missing = [c for c in required_cols if c not in map_df.columns]
-
-        if missing:
-            st.error(f"Missing required columns: {missing}")
-            st.stop()
-
         map_df["Date"] = pd.to_datetime(map_df["Date"], errors="coerce")
-        map_df = map_df[map_df["Location"].isin(city_coords.keys())]
 
-        # ----------------------------------
-        # Feature engineering (LOCAL, SAFE)
-        # ----------------------------------
-        map_df["Rainfall_3day_avg"] = (
-            map_df.groupby("Location")["Rainfall_mm"]
-            .rolling(3, min_periods=1)
-            .mean()
-            .reset_index(level=0, drop=True)
-        )
+        # --------------------------------
+        # Feature engineering (map-safe)
+        # --------------------------------
+        map_df["Rainfall_3day_avg"] = map_df["Rainfall_mm"].rolling(3, min_periods=1).mean()
+        map_df["Rainfall_7day_avg"] = map_df["Rainfall_mm"].rolling(7, min_periods=1).mean()
+        map_df["WaterLevel_change"] = map_df["WaterLevel_m"].diff().fillna(0)
 
-        map_df["WaterLevel_change"] = (
-            map_df.groupby("Location")["WaterLevel_m"]
-            .diff()
-            .fillna(0)
-        )
-
-        # ----------------------------------
-        # Train / reuse RF model
-        # ----------------------------------
+        # --------------------------------
+        # Train RF + compute probabilities
+        # --------------------------------
         model = train_flood_model(map_df)
 
-        X = map_df[
-            ["Rainfall_mm", "WaterLevel_m",
-             "Rainfall_3day_avg", "Rainfall_7day_avg", "WaterLevel_change"]
-        ].fillna(0)
+        features = [
+            "Rainfall_mm",
+            "WaterLevel_m",
+            "Rainfall_3day_avg",
+            "Rainfall_7day_avg",
+            "WaterLevel_change"
+        ]
 
-        map_df["FloodPrediction"] = model.predict(X)
-        map_df["FloodRiskScore"] = model.predict_proba(X)[:, 1]
+        X_map = map_df[features].fillna(0)
+        map_df["FloodPrediction"] = model.predict(X_map)
+        map_df["FloodRiskScore"] = model.predict_proba(X_map)[:, 1]
 
-        # ----------------------------------
-        # Rainfall anomaly (Z-score)
-        # ----------------------------------
-        z = (map_df["Rainfall_mm"] - map_df["Rainfall_mm"].mean()) / map_df["Rainfall_mm"].std()
-        map_df["Rainfall_Anomaly"] = (z > 2).astype(int)
+        # --------------------------------
+        # Rainfall anomaly detection
+        # --------------------------------
+        iso = IsolationForest(contamination=0.05, random_state=42)
+        map_df["Rainfall_Anomaly"] = (
+            iso.fit_predict(map_df[["Rainfall_mm"]].fillna(0)) == -1
+        ).astype(int)
 
-        # ----------------------------------
-        # Date slider (THIS NOW WORKS CORRECTLY)
-        # ----------------------------------
-        selected_date = st.slider(
-            "Select Date",
-            min_value=map_df["Date"].min().date(),
-            max_value=map_df["Date"].max().date(),
-            value=map_df["Date"].max().date()
-        )
-
-        day_df = map_df[map_df["Date"].dt.date == selected_date]
-
-        if day_df.empty:
-            st.info("No data available for this date.")
-            st.stop()
-
-        # ----------------------------------
-        # Risk color logic
-        # ----------------------------------
+        # --------------------------------
+        # Risk color logic (Colab-aligned)
+        # --------------------------------
         def risk_color(prob, anomaly):
             if anomaly == 1:
                 return "purple"
@@ -315,62 +280,44 @@ elif panel == "🗺️ Geospatial Mapping":
             else:
                 return "green"
 
-        # ----------------------------------
-        # Map rendering
-        # ----------------------------------
+        # --------------------------------
+        # Build map
+        # --------------------------------
         m = folium.Map(location=[14.60, 121.00], zoom_start=11)
 
-        for _, row in day_df.iterrows():
-            lat, lon = city_coords[row["Location"]]
-            color = risk_color(row["FloodRiskScore"], row["Rainfall_Anomaly"])
+        latest_df = (
+            map_df.sort_values("Date")
+            .groupby("Location")
+            .tail(1)
+        )
+
+        for _, row in latest_df.iterrows():
+            coords = city_coords.get(row["Location"])
+            if coords is None:
+                continue
 
             folium.CircleMarker(
-                location=[lat, lon],
-                radius=22,
-                color=color,
+                location=coords,
+                radius=18,
+                color=risk_color(row["FloodRiskScore"], row["Rainfall_Anomaly"]),
                 fill=True,
-                fill_color=color,
-                fill_opacity=0.8,
+                fill_color=risk_color(row["FloodRiskScore"], row["Rainfall_Anomaly"]),
+                fill_opacity=0.75,
                 popup=folium.Popup(
                     f"""
                     <b>City:</b> {row['Location']}<br>
                     <b>Date:</b> {row['Date'].date()}<br>
-                    <b>Flood Risk:</b> {row['FloodRiskScore']:.2f}<br>
-                    <b>Prediction:</b> {'Flood' if row['FloodPrediction']==1 else 'No Flood'}<br>
-                    <b>Rainfall Anomaly:</b> {'Yes' if row['Rainfall_Anomaly']==1 else 'No'}
+                    <b>Flood Risk Score:</b> {row['FloodRiskScore']:.2f}<br>
+                    <b>Prediction:</b> {"Flood" if row['FloodPrediction'] == 1 else "No Flood"}<br>
+                    <b>Rainfall Anomaly:</b> {"Yes" if row['Rainfall_Anomaly'] == 1 else "No"}
                     """,
                     max_width=300
                 )
             ).add_to(m)
 
-        # ----------------------------------
-        # Legend (FIXED CONTRAST)
-        # ----------------------------------
-        legend_html = """
-        <div style="
-            position: fixed;
-            bottom: 40px;
-            left: 40px;
-            width: 240px;
-            background: white;
-            border-radius: 10px;
-            padding: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-            font-size: 13px;
-            z-index: 9999;
-            color: black;
-        ">
-        <b>Flood Risk Legend</b><br>
-        🟢 Low Risk<br>
-        🟠 Moderate Risk<br>
-        🔴 High Risk<br>
-        🟣 Rainfall Anomaly
-        </div>
-        """
-        m.get_root().html.add_child(folium.Element(legend_html))
-
-        st_folium(m, width=1000, height=550)
+        st_folium(m, width=1000, height=520)
         st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 # ==============================
@@ -433,7 +380,3 @@ PROJECT AHON • AI Flood Risk Intelligence<br>
 SDG 11 – Sustainable Cities & Communities
 </footer>
 """, unsafe_allow_html=True)
-
-
-
-
