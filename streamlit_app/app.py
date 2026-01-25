@@ -327,49 +327,125 @@ elif panel == "📈 Insights":
     if df is None:
         st.warning("Upload dataset first.")
     else:
-        df_insight = df.copy()
-        df_insight["Date"] = pd.to_datetime(df_insight["Date"], errors="coerce")
-        df_insight["Rainfall_3day_avg"] = df_insight["Rainfall_mm"].rolling(3, min_periods=1).mean()
-        df_insight["Rainfall_7day_avg"] = df_insight["Rainfall_mm"].rolling(7, min_periods=1).mean()
-        df_insight["WaterLevel_change"] = df_insight["WaterLevel_m"].diff().fillna(0)
+        hist_df = df.copy()
+        hist_df["Date"] = pd.to_datetime(hist_df["Date"], errors="coerce")
+        hist_df = hist_df.dropna(subset=["Date"])
 
-        if "FloodOccurrence" in df_insight.columns:
-            model = train_flood_model(df_insight)
+        # ------------------------------
+        # Extract Month-Day & Year
+        # ------------------------------
+        hist_df["MonthDay"] = hist_df["Date"].dt.strftime("%m-%d")
+        hist_df["Year"] = hist_df["Date"].dt.year
 
-            st.markdown("<div class='card'>", unsafe_allow_html=True)
-            st.subheader("📅 Flood Risk Prediction by Date")
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
+        st.subheader("📅 Historical Flood Risk by Date")
 
-            available_dates = df_insight["Date"].dropna().dt.date.unique()
-            selected_date = st.date_input("Select a date", value=available_dates[-1])
+        # ------------------------------
+        # User Inputs
+        # ------------------------------
+        col1, col2 = st.columns(2)
 
-            day_data = df_insight[df_insight["Date"].dt.date == selected_date]
+        with col1:
+            selected_date = st.date_input(
+                "Select Month & Day",
+                value=hist_df["Date"].max()
+            )
 
-            if day_data.empty:
-                st.info("No data available for this date.")
-            else:
-                features = ["Rainfall_mm","WaterLevel_m","Rainfall_3day_avg","Rainfall_7day_avg","WaterLevel_change"]
-                X_day = day_data[features].fillna(0)
-                day_data["Flood_Prediction"] = model.predict(X_day)
-                day_data["Flood_Probability"] = model.predict_proba(X_day)[:, 1]
-                avg_prob = day_data["Flood_Probability"].mean()
+        with col2:
+            selected_year = st.selectbox(
+                "Select Year (reference only)",
+                sorted(hist_df["Year"].unique())
+            )
 
-                if avg_prob >= 0.7: risk, icon = "HIGH RISK", "🚨"
-                elif avg_prob >= 0.4: risk, icon = "MODERATE RISK", "⚠️"
-                else: risk, icon = "LOW RISK", "🟢"
+        month_day = selected_date.strftime("%m-%d")
 
-                st.metric(f"{icon} Overall Flood Risk", risk, f"{round(avg_prob*100,2)}% probability")
+        # ------------------------------
+        # Filter by Month-Day only
+        # ------------------------------
+        date_pattern_df = hist_df[
+            hist_df["MonthDay"] == month_day
+        ]
 
-                st.markdown("### 📍 Predicted Flood-Prone Areas")
-                affected = day_data[day_data["Flood_Prediction"] == 1]
-                if affected.empty:
-                    st.success("No flooding predicted for this date.")
+        if date_pattern_df.empty:
+            st.info("No historical records for this date.")
+        else:
+            # ------------------------------
+            # Aggregate historical risk
+            # ------------------------------
+            risk_profile = (
+                date_pattern_df
+                .groupby("Location")
+                .agg(
+                    flood_rate=("FloodOccurrence", "mean"),
+                    avg_rainfall=("Rainfall_mm", "mean"),
+                    avg_waterlevel=("WaterLevel_m", "mean"),
+                    records=("FloodOccurrence", "count")
+                )
+                .reset_index()
+            )
+
+            # ------------------------------
+            # Risk labeling
+            # ------------------------------
+            def risk_label(rate):
+                if rate >= 0.7:
+                    return "HIGH"
+                elif rate >= 0.4:
+                    return "MODERATE"
                 else:
-                    st.dataframe(
-                        affected[["Location","Rainfall_mm","WaterLevel_m","Flood_Probability"]].sort_values("Flood_Probability", ascending=False),
-                        use_container_width=True
-                    )
-            st.markdown("</div>", unsafe_allow_html=True)
+                    return "LOW"
 
+            risk_profile["Risk Level"] = risk_profile["flood_rate"].apply(risk_label)
+            risk_profile["Flood Probability"] = (risk_profile["flood_rate"] * 100).round(1).astype(str) + "%"
+
+            # ------------------------------
+            # Summary metric
+            # ------------------------------
+            avg_risk = risk_profile["flood_rate"].mean()
+
+            if avg_risk >= 0.7:
+                st.metric("🚨 Overall Historical Risk", "HIGH", f"{avg_risk:.0%}")
+            elif avg_risk >= 0.4:
+                st.metric("⚠️ Overall Historical Risk", "MODERATE", f"{avg_risk:.0%}")
+            else:
+                st.metric("🟢 Overall Historical Risk", "LOW", f"{avg_risk:.0%}")
+
+            # ------------------------------
+            # City-level warnings
+            # ------------------------------
+            st.markdown("### 📍 City-Based Historical Warnings")
+
+            for _, row in risk_profile.iterrows():
+                if row["Risk Level"] == "HIGH":
+                    st.error(
+                        f"🚨 **{row['Location']}**\n\n"
+                        f"- Historical Flood Probability: {row['Flood Probability']}\n"
+                        f"- Based on {row['records']} years of data"
+                    )
+                elif row["Risk Level"] == "MODERATE":
+                    st.warning(
+                        f"⚠️ **{row['Location']}**\n\n"
+                        f"- Historical Flood Probability: {row['Flood Probability']}\n"
+                        f"- Based on {row['records']} years of data"
+                    )
+                else:
+                    st.success(
+                        f"🟢 **{row['Location']}** – Low historical flood risk"
+                    )
+
+            # ------------------------------
+            # Detailed table
+            # ------------------------------
+            st.markdown("### 📊 Historical Flood Statistics")
+            st.dataframe(
+                risk_profile[
+                    ["Location", "Risk Level", "Flood Probability",
+                     "avg_rainfall", "avg_waterlevel", "records"]
+                ].sort_values("Risk Level"),
+                use_container_width=True
+            )
+
+        st.markdown("</div>", unsafe_allow_html=True)
 # ==============================
 # FOOTER
 # ==============================
