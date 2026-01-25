@@ -215,98 +215,161 @@ elif panel == "🌧️ Anomaly Detection":
 # ==============================
 # GEOSPATIAL MAPPING
 # ==============================
+# ==============================
+# GEOSPATIAL MAPPING (FIXED)
+# ==============================
 elif panel == "🗺️ Geospatial Mapping":
 
     if df is None:
         st.warning("Upload dataset first.")
     else:
-        import folium
-        from streamlit_folium import st_folium
-        import pandas as pd
-
         st.markdown("<div class='card'>", unsafe_allow_html=True)
-        st.subheader("Flood Risk Map (City-Based)")
+        st.subheader("Flood Risk Map (City-Based, Time-Aware)")
 
-        # -----------------------------
-        # Fixed city coordinates
-        # -----------------------------
+        # ----------------------------------
+        # Fixed city coordinates (NO LAT/LON COLUMNS REQUIRED)
+        # ----------------------------------
         city_coords = {
-            "Quezon City": [14.6760, 121.0437],
-            "Manila": [14.5995, 120.9842],
-            "Marikina": [14.6507, 121.1029],
-            "Pasig": [14.5764, 121.0851],
+            "Quezon City": (14.6760, 121.0437),
+            "Manila": (14.5995, 120.9842),
+            "Marikina": (14.6507, 121.1029),
+            "Pasig": (14.5764, 121.0851),
         }
 
-        df = df.copy()
-        df["Date"] = pd.to_datetime(df["Date"])
-        df = df[df["Location"].isin(city_coords.keys())]
+        map_df = df.copy()
 
-        # -----------------------------
-        # Create missing fields safely
-        # -----------------------------
-        if "FloodRiskScore" not in df.columns:
-            df["FloodRiskScore"] = (
-                df["Rainfall"] - df["Rainfall"].min()
-            ) / (df["Rainfall"].max() - df["Rainfall"].min())
+        # ----------------------------------
+        # Required column check
+        # ----------------------------------
+        required_cols = ["Date", "Location", "Rainfall_mm", "WaterLevel_m"]
+        missing = [c for c in required_cols if c not in map_df.columns]
 
-        if "Rainfall_Anomaly" not in df.columns:
-            z = (df["Rainfall"] - df["Rainfall"].mean()) / df["Rainfall"].std()
-            df["Rainfall_Anomaly"] = (z > 2).astype(int)
+        if missing:
+            st.error(f"Missing required columns: {missing}")
+            st.stop()
 
-        if "FloodPrediction" not in df.columns:
-            df["FloodPrediction"] = (df["FloodRiskScore"] >= 0.6).astype(int)
+        map_df["Date"] = pd.to_datetime(map_df["Date"], errors="coerce")
+        map_df = map_df[map_df["Location"].isin(city_coords.keys())]
 
-        # -----------------------------
-        # Date selector
-        # -----------------------------
-        selected_date = st.slider(
-            "Select Date",
-            min_value=df["Date"].min().date(),
-            max_value=df["Date"].max().date(),
-            value=df["Date"].min().date()
+        # ----------------------------------
+        # Feature engineering (LOCAL, SAFE)
+        # ----------------------------------
+        map_df["Rainfall_3day_avg"] = (
+            map_df.groupby("Location")["Rainfall_mm"]
+            .rolling(3, min_periods=1)
+            .mean()
+            .reset_index(level=0, drop=True)
         )
 
-        day_df = df[df["Date"].dt.date == selected_date]
+        map_df["WaterLevel_change"] = (
+            map_df.groupby("Location")["WaterLevel_m"]
+            .diff()
+            .fillna(0)
+        )
 
-        # -----------------------------
+        # ----------------------------------
+        # Train / reuse RF model
+        # ----------------------------------
+        model = train_flood_model(map_df)
+
+        X = map_df[
+            ["Rainfall_mm", "WaterLevel_m",
+             "Rainfall_3day_avg", "Rainfall_7day_avg", "WaterLevel_change"]
+        ].fillna(0)
+
+        map_df["FloodPrediction"] = model.predict(X)
+        map_df["FloodRiskScore"] = model.predict_proba(X)[:, 1]
+
+        # ----------------------------------
+        # Rainfall anomaly (Z-score)
+        # ----------------------------------
+        z = (map_df["Rainfall_mm"] - map_df["Rainfall_mm"].mean()) / map_df["Rainfall_mm"].std()
+        map_df["Rainfall_Anomaly"] = (z > 2).astype(int)
+
+        # ----------------------------------
+        # Date slider (THIS NOW WORKS CORRECTLY)
+        # ----------------------------------
+        selected_date = st.slider(
+            "Select Date",
+            min_value=map_df["Date"].min().date(),
+            max_value=map_df["Date"].max().date(),
+            value=map_df["Date"].max().date()
+        )
+
+        day_df = map_df[map_df["Date"].dt.date == selected_date]
+
+        if day_df.empty:
+            st.info("No data available for this date.")
+            st.stop()
+
+        # ----------------------------------
         # Risk color logic
-        # -----------------------------
-        def risk_color(score, anomaly):
+        # ----------------------------------
+        def risk_color(prob, anomaly):
             if anomaly == 1:
                 return "purple"
-            elif score >= 0.7:
+            elif prob >= 0.7:
                 return "red"
-            elif score >= 0.4:
+            elif prob >= 0.4:
                 return "orange"
             else:
                 return "green"
 
-        # -----------------------------
-        # Map
-        # -----------------------------
+        # ----------------------------------
+        # Map rendering
+        # ----------------------------------
         m = folium.Map(location=[14.60, 121.00], zoom_start=11)
 
         for _, row in day_df.iterrows():
             lat, lon = city_coords[row["Location"]]
-
             color = risk_color(row["FloodRiskScore"], row["Rainfall_Anomaly"])
 
             folium.CircleMarker(
                 location=[lat, lon],
-                radius=20,
+                radius=22,
                 color=color,
                 fill=True,
                 fill_color=color,
-                fill_opacity=0.75,
-                popup=(
-                    f"<b>City:</b> {row['Location']}<br>"
-                    f"<b>Date:</b> {row['Date'].date()}<br>"
-                    f"<b>Risk Score:</b> {row['FloodRiskScore']:.2f}<br>"
-                    f"<b>Prediction:</b> {'Flood' if row['FloodPrediction']==1 else 'No Flood'}"
+                fill_opacity=0.8,
+                popup=folium.Popup(
+                    f"""
+                    <b>City:</b> {row['Location']}<br>
+                    <b>Date:</b> {row['Date'].date()}<br>
+                    <b>Flood Risk:</b> {row['FloodRiskScore']:.2f}<br>
+                    <b>Prediction:</b> {'Flood' if row['FloodPrediction']==1 else 'No Flood'}<br>
+                    <b>Rainfall Anomaly:</b> {'Yes' if row['Rainfall_Anomaly']==1 else 'No'}
+                    """,
+                    max_width=300
                 )
             ).add_to(m)
 
-        st_folium(m, width=1000, height=520)
+        # ----------------------------------
+        # Legend (FIXED CONTRAST)
+        # ----------------------------------
+        legend_html = """
+        <div style="
+            position: fixed;
+            bottom: 40px;
+            left: 40px;
+            width: 240px;
+            background: white;
+            border-radius: 10px;
+            padding: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            font-size: 13px;
+            z-index: 9999;
+            color: black;
+        ">
+        <b>Flood Risk Legend</b><br>
+        🟢 Low Risk<br>
+        🟠 Moderate Risk<br>
+        🔴 High Risk<br>
+        🟣 Rainfall Anomaly
+        </div>
+        """
+        m.get_root().html.add_child(folium.Element(legend_html))
+
+        st_folium(m, width=1000, height=550)
         st.markdown("</div>", unsafe_allow_html=True)
 
 
