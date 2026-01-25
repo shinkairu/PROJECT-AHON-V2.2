@@ -22,7 +22,7 @@ st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-body, .stApp { font-family: 'Inter', sans-serif; background-color: #f5f7fb; color: #1f2937; }
+body, .stApp { font-family: 'Inter', sans-serif; background-color: #63a9ff; color: #1f2937; }
 section[data-testid="stSidebar"] { background-color: #ffffff; border-right: 1px solid #e5e7eb; }
 .hero { background: linear-gradient(135deg, #1e3a8a, #3b82f6); border-radius: 30px; padding: 3.5rem; color: white; box-shadow: 0 25px 60px rgba(30,58,138,0.35); margin-bottom: 2rem; }
 .hero h1 { font-size: 3.2rem; font-weight: 700; }
