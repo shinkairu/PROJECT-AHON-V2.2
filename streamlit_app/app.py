@@ -220,11 +220,11 @@ elif panel == "🗺️ Geospatial Mapping":
         st.warning("Upload dataset first.")
     else:
         st.markdown("<div class='card'>", unsafe_allow_html=True)
-        st.subheader("Flood Risk Map (Anomaly-Aware)")
+        st.subheader("🌊 Flood Risk Map (Time-Aware & Anomaly-Aware)")
 
-        # --------------------------------
-        # City → Coordinates (Metro Manila)
-        # --------------------------------
+        # -------------------------------
+        # City coordinates
+        # -------------------------------
         city_coords = {
             "Quezon City": (14.6760, 121.0437),
             "Manila": (14.5995, 120.9842),
@@ -235,16 +235,16 @@ elif panel == "🗺️ Geospatial Mapping":
         map_df = df.copy()
         map_df["Date"] = pd.to_datetime(map_df["Date"], errors="coerce")
 
-        # --------------------------------
-        # Feature engineering (map-safe)
-        # --------------------------------
+        # -------------------------------
+        # Feature engineering
+        # -------------------------------
         map_df["Rainfall_3day_avg"] = map_df["Rainfall_mm"].rolling(3, min_periods=1).mean()
         map_df["Rainfall_7day_avg"] = map_df["Rainfall_mm"].rolling(7, min_periods=1).mean()
         map_df["WaterLevel_change"] = map_df["WaterLevel_m"].diff().fillna(0)
 
-        # --------------------------------
-        # Train RF + compute probabilities
-        # --------------------------------
+        # -------------------------------
+        # Train Random Forest
+        # -------------------------------
         model = train_flood_model(map_df)
 
         features = [
@@ -259,17 +259,17 @@ elif panel == "🗺️ Geospatial Mapping":
         map_df["FloodPrediction"] = model.predict(X_map)
         map_df["FloodRiskScore"] = model.predict_proba(X_map)[:, 1]
 
-        # --------------------------------
+        # -------------------------------
         # Rainfall anomaly detection
-        # --------------------------------
+        # -------------------------------
         iso = IsolationForest(contamination=0.05, random_state=42)
         map_df["Rainfall_Anomaly"] = (
             iso.fit_predict(map_df[["Rainfall_mm"]].fillna(0)) == -1
         ).astype(int)
 
-        # --------------------------------
-        # Risk color logic (Colab-aligned)
-        # --------------------------------
+        # -------------------------------
+        # Risk color logic
+        # -------------------------------
         def risk_color(prob, anomaly):
             if anomaly == 1:
                 return "purple"
@@ -280,18 +280,31 @@ elif panel == "🗺️ Geospatial Mapping":
             else:
                 return "green"
 
-        # --------------------------------
+        # -------------------------------
+        # Date slider (animation control)
+        # -------------------------------
+        available_dates = sorted(map_df["Date"].dropna().dt.date.unique())
+        selected_date = st.slider(
+            "📅 Select Date (move slider to animate)",
+            min_value=available_dates[0],
+            max_value=available_dates[-1],
+            value=available_dates[-1]
+        )
+
+        day_df = map_df[map_df["Date"].dt.date == selected_date]
+
+        # -------------------------------
         # Build map
-        # --------------------------------
+        # -------------------------------
         m = folium.Map(location=[14.60, 121.00], zoom_start=11)
 
-        latest_df = (
-            map_df.sort_values("Date")
+        latest_city_df = (
+            day_df.sort_values("Date")
             .groupby("Location")
             .tail(1)
         )
 
-        for _, row in latest_df.iterrows():
+        for _, row in latest_city_df.iterrows():
             coords = city_coords.get(row["Location"])
             if coords is None:
                 continue
@@ -306,7 +319,7 @@ elif panel == "🗺️ Geospatial Mapping":
                 popup=folium.Popup(
                     f"""
                     <b>City:</b> {row['Location']}<br>
-                    <b>Date:</b> {row['Date'].date()}<br>
+                    <b>Date:</b> {selected_date}<br>
                     <b>Flood Risk Score:</b> {row['FloodRiskScore']:.2f}<br>
                     <b>Prediction:</b> {"Flood" if row['FloodPrediction'] == 1 else "No Flood"}<br>
                     <b>Rainfall Anomaly:</b> {"Yes" if row['Rainfall_Anomaly'] == 1 else "No"}
@@ -315,8 +328,33 @@ elif panel == "🗺️ Geospatial Mapping":
                 )
             ).add_to(m)
 
-        st_folium(m, width=1000, height=520)
+        # -------------------------------
+        # Legend overlay
+        # -------------------------------
+        legend_html = """
+        <div style="
+            position: fixed;
+            bottom: 40px;
+            left: 40px;
+            z-index: 9999;
+            background: white;
+            padding: 14px 18px;
+            border-radius: 12px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+            font-size: 14px;
+        ">
+        <b>Flood Risk Legend</b><br><br>
+        🟣 Rainfall Anomaly<br>
+        🔴 High Risk (≥ 70%)<br>
+        🟠 Moderate Risk (40–69%)<br>
+        🟢 Low Risk (&lt; 40%)
+        </div>
+        """
+        m.get_root().html.add_child(folium.Element(legend_html))
+
+        st_folium(m, width=1000, height=550)
         st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
