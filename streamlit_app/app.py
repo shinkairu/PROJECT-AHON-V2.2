@@ -216,147 +216,106 @@ elif panel == "🌧️ Anomaly Detection":
 # GEOSPATIAL MAPPING
 # ==============================
 elif panel == "🗺️ Geospatial Mapping":
+
     if df is None:
         st.warning("Upload dataset first.")
     else:
+        import folium
+        from streamlit_folium import st_folium
+        import pandas as pd
+
         st.markdown("<div class='card'>", unsafe_allow_html=True)
-        st.subheader("🌊 Flood Risk Map (Time-Aware & Anomaly-Aware)")
+        st.subheader("Animated Flood Risk Map (Metro Manila)")
 
-        # -------------------------------
-        # City coordinates
-        # -------------------------------
-        city_coords = {
-            "Quezon City": (14.6760, 121.0437),
-            "Manila": (14.5995, 120.9842),
-            "Marikina": (14.6507, 121.1029),
-            "Pasig": (14.5764, 121.0851)
-        }
+        # --------------------------------------------------
+        # 1. Ensure proper datetime handling
+        # --------------------------------------------------
+        df["Date"] = pd.to_datetime(df["Date"])
 
-        map_df = df.copy()
-        map_df["Date"] = pd.to_datetime(map_df["Date"], errors="coerce")
+        # Limit to the 4 cities only
+        cities = ["Quezon City", "Manila", "Marikina", "Pasig"]
+        geo_df = df[df["Location"].isin(cities)].copy()
 
-        # -------------------------------
-        # Feature engineering
-        # -------------------------------
-        map_df["Rainfall_3day_avg"] = map_df["Rainfall_mm"].rolling(3, min_periods=1).mean()
-        map_df["Rainfall_7day_avg"] = map_df["Rainfall_mm"].rolling(7, min_periods=1).mean()
-        map_df["WaterLevel_change"] = map_df["WaterLevel_m"].diff().fillna(0)
+        # --------------------------------------------------
+        # 2. Date slider (correct filtering happens AFTER)
+        # --------------------------------------------------
+        selected_date = st.slider(
+            "Select Date",
+            min_value=geo_df["Date"].min().date(),
+            max_value=geo_df["Date"].max().date(),
+            value=geo_df["Date"].min().date()
+        )
 
-        # -------------------------------
-        # Train Random Forest
-        # -------------------------------
-        model = train_flood_model(map_df)
+        day_df = geo_df[geo_df["Date"].dt.date == selected_date]
 
-        features = [
-            "Rainfall_mm",
-            "WaterLevel_m",
-            "Rainfall_3day_avg",
-            "Rainfall_7day_avg",
-            "WaterLevel_change"
-        ]
-
-        X_map = map_df[features].fillna(0)
-        map_df["FloodPrediction"] = model.predict(X_map)
-        map_df["FloodRiskScore"] = model.predict_proba(X_map)[:, 1]
-
-        # -------------------------------
-        # Rainfall anomaly detection
-        # -------------------------------
-        iso = IsolationForest(contamination=0.05, random_state=42)
-        map_df["Rainfall_Anomaly"] = (
-            iso.fit_predict(map_df[["Rainfall_mm"]].fillna(0)) == -1
-        ).astype(int)
-
-        # -------------------------------
-        # Risk color logic
-        # -------------------------------
+        # --------------------------------------------------
+        # 3. Flood risk color function (FROM COLAB)
+        # --------------------------------------------------
         def risk_color(prob, anomaly):
             if anomaly == 1:
-                return "purple"
+                return "purple"     # Extreme rainfall anomaly
             elif prob >= 0.7:
-                return "red"
+                return "red"        # High risk
             elif prob >= 0.4:
-                return "orange"
+                return "orange"     # Moderate risk
             else:
-                return "green"
+                return "green"      # Low risk
 
-        # -------------------------------
-        # Date slider (animation control)
-        # -------------------------------
-        available_dates = sorted(map_df["Date"].dropna().dt.date.unique())
-        selected_date = st.slider(
-            "📅 Select Date (move slider to animate)",
-            min_value=available_dates[0],
-            max_value=available_dates[-1],
-            value=available_dates[-1]
-        )
-
-        day_df = map_df[map_df["Date"].dt.date == selected_date]
-
-        # -------------------------------
-        # Build map
-        # -------------------------------
+        # --------------------------------------------------
+        # 4. Create map (RENDER PER DATE — this fixes mismatch)
+        # --------------------------------------------------
         m = folium.Map(location=[14.60, 121.00], zoom_start=11)
 
-        latest_city_df = (
-            day_df.sort_values("Date")
-            .groupby("Location")
-            .tail(1)
-        )
-
-        for _, row in latest_city_df.iterrows():
-            coords = city_coords.get(row["Location"])
-            if coords is None:
-                continue
+        for _, row in day_df.iterrows():
+            color = risk_color(row["FloodRiskScore"], row["Rainfall_Anomaly"])
 
             folium.CircleMarker(
-                location=coords,
+                location=[row["Latitude"], row["Longitude"]],
                 radius=18,
-                color=risk_color(row["FloodRiskScore"], row["Rainfall_Anomaly"]),
+                color=color,
                 fill=True,
-                fill_color=risk_color(row["FloodRiskScore"], row["Rainfall_Anomaly"]),
+                fill_color=color,
                 fill_opacity=0.75,
-                popup=folium.Popup(
-                    f"""
-                    <b>City:</b> {row['Location']}<br>
-                    <b>Date:</b> {selected_date}<br>
-                    <b>Flood Risk Score:</b> {row['FloodRiskScore']:.2f}<br>
-                    <b>Prediction:</b> {"Flood" if row['FloodPrediction'] == 1 else "No Flood"}<br>
-                    <b>Rainfall Anomaly:</b> {"Yes" if row['Rainfall_Anomaly'] == 1 else "No"}
-                    """,
-                    max_width=300
+                popup=(
+                    f"<b>City:</b> {row['Location']}<br>"
+                    f"<b>Date:</b> {row['Date'].date()}<br>"
+                    f"<b>Flood Risk Score:</b> {row['FloodRiskScore']:.2f}<br>"
+                    f"<b>Prediction:</b> {'Flood' if row['FloodPrediction'] == 1 else 'No Flood'}<br>"
+                    f"<b>Rainfall Anomaly:</b> {'Yes' if row['Rainfall_Anomaly'] == 1 else 'No'}"
                 )
             ).add_to(m)
 
-        # -------------------------------
-        # Legend overlay
-        # -------------------------------
+        # --------------------------------------------------
+        # 5. Legend overlay (FIXED FONT COLOR)
+        # --------------------------------------------------
         legend_html = """
         <div style="
             position: fixed;
-            bottom: 40px;
-            left: 40px;
+            bottom: 30px;
+            left: 30px;
             z-index: 9999;
-            background: white;
-            padding: 14px 18px;
-            border-radius: 12px;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+            background-color: rgba(255,255,255,0.95);
+            padding: 12px 16px;
+            border-radius: 8px;
             font-size: 14px;
+            color: #000;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
         ">
-        <b>Flood Risk Legend</b><br><br>
-        🟣 Rainfall Anomaly<br>
-        🔴 High Risk (≥ 70%)<br>
-        🟠 Moderate Risk (40–69%)<br>
-        🟢 Low Risk (&lt; 40%)
+        <b>Flood Risk Legend</b><br>
+        <i style="background:green;width:10px;height:10px;display:inline-block;"></i> Low Risk<br>
+        <i style="background:orange;width:10px;height:10px;display:inline-block;"></i> Moderate Risk<br>
+        <i style="background:red;width:10px;height:10px;display:inline-block;"></i> High Risk<br>
+        <i style="background:purple;width:10px;height:10px;display:inline-block;"></i> Rainfall Anomaly
         </div>
         """
         m.get_root().html.add_child(folium.Element(legend_html))
 
+        # --------------------------------------------------
+        # 6. Render map
+        # --------------------------------------------------
         st_folium(m, width=1000, height=550)
+
         st.markdown("</div>", unsafe_allow_html=True)
-
-
-
 
 # ==============================
 # INSIGHTS – FLOOD PREDICTION
