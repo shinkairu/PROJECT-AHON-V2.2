@@ -213,18 +213,17 @@ elif panel == "🌧️ Anomaly Detection":
         st.markdown("</div>", unsafe_allow_html=True)
 
 # ==============================
-# GEOSPATIAL MAPPING (IMPROVED)
+# GEOSPATIAL MAPPING (IMPROVED & ACCURATE)
 # ==============================
 elif panel == "🗺️ Geospatial Mapping":
     if df is None:
         st.warning("Upload dataset first.")
     else:
         st.markdown("<div class='card'>", unsafe_allow_html=True)
-        st.subheader("Flood Risk Map (Anomaly-Aware)")
+        st.subheader("Flood Risk Map (Anomaly-Aware) — Improved")
 
         # --------------------------------
         # City → Coordinates (Metro Manila)
-        # (Centroids only; for higher accuracy, store lat/lon in dataset)
         # --------------------------------
         city_coords = {
             "Quezon City": (14.6760, 121.0437),
@@ -234,19 +233,19 @@ elif panel == "🗺️ Geospatial Mapping":
         }
 
         map_df = df.copy()
+
+        # Basic cleaning
         map_df["Date"] = pd.to_datetime(map_df["Date"], errors="coerce")
         map_df = map_df.dropna(subset=["Date", "Location"])
+        map_df["Rainfall_mm"] = pd.to_numeric(map_df["Rainfall_mm"], errors="coerce")
+        map_df["WaterLevel_m"] = pd.to_numeric(map_df["WaterLevel_m"], errors="coerce")
 
-        # Ensure numeric
-        for col in ["Rainfall_mm", "WaterLevel_m"]:
-            map_df[col] = pd.to_numeric(map_df[col], errors="coerce")
-
-        # --------------------------------
-        # ✅ Feature engineering PER CITY
-        # --------------------------------
+        # ✅ IMPORTANT: sort per Location + Date (so rolling/diff are correct)
         map_df = map_df.sort_values(["Location", "Date"]).reset_index(drop=True)
 
-        # Rolling means per Location
+        # --------------------------------
+        # ✅ Feature engineering per Location
+        # --------------------------------
         map_df["Rainfall_3day_avg"] = (
             map_df.groupby("Location")["Rainfall_mm"]
             .transform(lambda s: s.rolling(3, min_periods=1).mean())
@@ -255,22 +254,15 @@ elif panel == "🗺️ Geospatial Mapping":
             map_df.groupby("Location")["Rainfall_mm"]
             .transform(lambda s: s.rolling(7, min_periods=1).mean())
         )
-
-        # Water level change per Location
         map_df["WaterLevel_change"] = (
             map_df.groupby("Location")["WaterLevel_m"]
             .diff()
             .fillna(0)
         )
 
-        # Optional: smoother signal (less noisy risk)
-        map_df["Rainfall_ewm"] = (
-            map_df.groupby("Location")["Rainfall_mm"]
-            .transform(lambda s: s.ewm(span=5, adjust=False).mean())
-        )
-
         # --------------------------------
         # Train RF + compute probabilities
+        # (Keep SAME features as your train_flood_model)
         # --------------------------------
         model = train_flood_model(map_df)
 
@@ -279,31 +271,27 @@ elif panel == "🗺️ Geospatial Mapping":
             "WaterLevel_m",
             "Rainfall_3day_avg",
             "Rainfall_7day_avg",
-            "WaterLevel_change",
-            # Optional: include EWM if your model benefits
-            "Rainfall_ewm",
+            "WaterLevel_change"
         ]
 
         X_map = map_df[features].fillna(0)
+
         map_df["FloodPrediction"] = model.predict(X_map)
         map_df["FloodRiskScore"] = model.predict_proba(X_map)[:, 1]
 
         # --------------------------------
         # ✅ Rainfall anomaly detection PER CITY
-        # (Less false flags caused by other cities)
         # --------------------------------
-        def detect_anomaly_per_city(group):
-            # If too few points, no anomalies
-            if len(group) < 20:
-                group["Rainfall_Anomaly"] = 0
-                return group
-
+        def per_city_anomaly(g):
+            g = g.copy()
+            if len(g) < 20:
+                g["Rainfall_Anomaly"] = 0
+                return g
             iso = IsolationForest(contamination=0.05, random_state=42)
-            preds = iso.fit_predict(group[["Rainfall_mm"]].fillna(0))
-            group["Rainfall_Anomaly"] = (preds == -1).astype(int)
-            return group
+            g["Rainfall_Anomaly"] = (iso.fit_predict(g[["Rainfall_mm"]].fillna(0)) == -1).astype(int)
+            return g
 
-        map_df = map_df.groupby("Location", group_keys=False).apply(detect_anomaly_per_city)
+        map_df = map_df.groupby("Location", group_keys=False).apply(per_city_anomaly)
 
         # --------------------------------
         # Risk color logic
@@ -319,18 +307,11 @@ elif panel == "🗺️ Geospatial Mapping":
                 return "green"
 
         # --------------------------------
-        # Build map
+        # Build map (nicer tiles)
         # --------------------------------
         m = folium.Map(location=[14.60, 121.00], zoom_start=11, tiles="CartoDB positron")
 
-        # ✅ Latest per city (after correct sorting)
-        latest_df = (
-            map_df.sort_values(["Location", "Date"])
-            .groupby("Location", as_index=False)
-            .tail(1)
-        )
-
-        # Legend (simple HTML)
+        # Legend
         legend_html = """
         <div style="
             position: fixed;
@@ -350,6 +331,13 @@ elif panel == "🗺️ Geospatial Mapping":
         </div>
         """
         m.get_root().html.add_child(folium.Element(legend_html))
+
+        # Latest per city
+        latest_df = (
+            map_df.sort_values(["Location", "Date"])
+            .groupby("Location", as_index=False)
+            .tail(1)
+        )
 
         for _, row in latest_df.iterrows():
             coords = city_coords.get(row["Location"])
@@ -376,8 +364,8 @@ elif panel == "🗺️ Geospatial Mapping":
                     <b>Date:</b> {row['Date'].date()}<br>
                     <b>Flood Risk Score:</b> {row['FloodRiskScore']:.2f}<br>
                     <b>Prediction:</b> {"Flood" if row['FloodPrediction'] == 1 else "No Flood"}<br>
-                    <b>Rainfall:</b> {row['Rainfall_mm'] if pd.notna(row['Rainfall_mm']) else 0:.2f} mm<br>
-                    <b>Water Level:</b> {row['WaterLevel_m'] if pd.notna(row['WaterLevel_m']) else 0:.2f} m<br>
+                    <b>Rainfall:</b> {0 if pd.isna(row['Rainfall_mm']) else row['Rainfall_mm']:.2f} mm<br>
+                    <b>Water Level:</b> {0 if pd.isna(row['WaterLevel_m']) else row['WaterLevel_m']:.2f} m<br>
                     <b>Rainfall Anomaly:</b> {"Yes" if row['Rainfall_Anomaly'] == 1 else "No"}
                     """,
                     max_width=320
@@ -386,6 +374,7 @@ elif panel == "🗺️ Geospatial Mapping":
 
         st_folium(m, width=1000, height=520)
         st.markdown("</div>", unsafe_allow_html=True)
+
 # ==============================
 # INSIGHTS – FLOOD PREDICTION
 # ==============================
